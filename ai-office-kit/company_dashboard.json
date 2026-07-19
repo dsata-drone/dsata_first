@@ -1,0 +1,20 @@
+{
+  "objective": "AIO対策W1を完遂する — ベースライン計測とllms.txt/構造化データの納品、実装は社長の貼り付け待ち",
+  "approvals": {
+    "pending": 1,
+    "estimated_review_time": "約15分（W1実装手順書の確認）"
+  },
+  "revenue": {},
+  "ai_cost": {
+    "mode": "NORMAL"
+  },
+  "money_engine": {},
+  "system_health": {
+    "errors": []
+  },
+  "evolution": "ダッシュボードのデータ層（采配盤・更新ログ・稼働状態API）が本日開通。オフィスが実作業と連動開始",
+  "cycles": [
+    { "name": "定点計測", "time": "10:00" },
+    { "name": "JOHN LOOP", "time": "18:38" }
+  ]
+}

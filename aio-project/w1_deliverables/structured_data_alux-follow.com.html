@@ -1,0 +1,138 @@
+<!-- ============================================================
+  ALUX PROGRAMMING（alux-follow.com）構造化データ実装コード v1.1
+  貼り付け先: 各ページの </head> 直前
+  ※ [要確認] の箇所は実際の値に置き換えてから公開すること
+============================================================ -->
+
+<!-- ① 全ページ共通: 運営組織（Organization） -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": "https://follow.ne.jp/#organization",
+  "name": "株式会社follow",
+  "url": "https://follow.ne.jp/",
+  "logo": "https://follow.ne.jp/[要確認:ロゴ画像パス]",
+  "telephone": "+81-50-1722-4529",
+  "sameAs": [
+    "https://alux-follow.com/",
+    "https://follow.ne.jp/alux/"
+  ],
+  "description": "ALUX社（韓国EdTech）の日本公式代理店として、ドローン・ロボットプログラミング教材を学校・塾・自治体へ展開する企業。"
+}
+</script>
+
+<!-- ② トップページ用: WebSite（サイト名をAIに正しく認識させる） -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://alux-follow.com/#website",
+  "name": "ALUX PROGRAMMING",
+  "alternateName": "Alux ドローンプログラミング教材",
+  "url": "https://alux-follow.com/",
+  "publisher": { "@id": "https://follow.ne.jp/#organization" },
+  "inLanguage": "ja"
+}
+</script>
+
+<!-- ③ 製品ページ用: コーディングドローン（/product/codingdrone） -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "コーディングドローン",
+  "url": "https://alux-follow.com/product/codingdrone",
+  "image": "https://alux-follow.com/[要確認:製品画像パス]",
+  "brand": { "@type": "Brand", "name": "ALUX" },
+  "manufacturer": { "@id": "https://follow.ne.jp/#organization" },
+  "description": "プログラミング学習用ドローン。カードコーディング・Scratch・Pythonの3段階で習熟度に合わせてレベルアップでき、編隊飛行やOpenCVを使ったAI画像認識まで発展できるSTEAM教育実践教材。",
+  "audience": {
+    "@type": "EducationalAudience",
+    "educationalRole": "student",
+    "audienceType": "小学生・中学生・高校生"
+  },
+  "offers": {
+    "@type": "Offer",
+    "availability": "https://schema.org/InStock",
+    "price": "[要確認:税込価格の数字のみ]",
+    "priceCurrency": "JPY",
+    "url": "https://alux-follow.com/product/codingdrone"
+  }
+}
+</script>
+
+<!-- ④ 製品ページ用: コーディングライダー（/product/codingrider） -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "コーディングライダー",
+  "url": "https://alux-follow.com/product/codingrider",
+  "image": "https://alux-follow.com/[要確認:製品画像パス]",
+  "brand": { "@type": "Brand", "name": "ALUX" },
+  "manufacturer": { "@id": "https://follow.ne.jp/#organization" },
+  "description": "教育現場での使いやすさを追求した学習用ドローン。複雑な設定や専門知識が不要で、直感的な操作でプログラミング的思考を楽しく育める。",
+  "audience": {
+    "@type": "EducationalAudience",
+    "educationalRole": "student",
+    "audienceType": "幼児・小学生・中学生"
+  },
+  "offers": {
+    "@type": "Offer",
+    "availability": "https://schema.org/InStock",
+    "price": "[要確認:税込価格の数字のみ]",
+    "priceCurrency": "JPY",
+    "url": "https://alux-follow.com/product/codingrider"
+  }
+}
+</script>
+
+<!-- ⑤ よくある質問ページ用: FAQPage（AI検索の引用源として最重要）
+     [要確認] 実際のFAQページの質問・回答に合わせて編集。以下は雛形3問 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "ALUXの教材は何歳から使えますか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "幼児から高校生まで段階的に学べるカリキュラムを用意しています。カードコーディングから始まり、Scratch、Pythonへとステップアップできます。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "学校や塾への導入サポートはありますか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "導入から授業実施まで専任スタッフがサポートします。カリキュラムと教材データは無料で提供しています。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Pythonでのプログラミングにも対応していますか？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "対応しています。コーディングドローンはPythonによるドローン制御・編隊飛行のほか、OpenCVを使ったAI画像認識まで学習できます。"
+      }
+    }
+  ]
+}
+</script>
+
+<!-- ⑥ お知らせ記事ページ用: NewsArticle（テンプレ。CMSで変数展開すること） -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  "headline": "[記事タイトル]",
+  "datePublished": "[YYYY-MM-DD]",
+  "dateModified": "[YYYY-MM-DD]",
+  "author": { "@id": "https://follow.ne.jp/#organization" },
+  "publisher": { "@id": "https://follow.ne.jp/#organization" },
+  "mainEntityOfPage": "[記事URL]"
+}
+</script>

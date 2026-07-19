@@ -58,6 +58,20 @@ open "http://localhost:$PORT/$(basename "$LATEST")"
 - これらは**無くても本体（オフィス＋キャラ＋state連携）は動く**。ダッシュボードだけ「未接続」表示になる。
 - 受け取り側が独自の指標を出したい場合は `company_dashboard.json` を自分のスキーマに合わせて用意するのが最短。
 
+## office_server.py での起動（推奨・2026-07-19更新）
+`python3 -m http.server` の代わりに同梱の `office_server.py` を使うと、静的配信に加えてAPIが生える。
+Windowsは `start_office.bat`、Mac/Linuxは `start_office.sh` をダブルクリック/実行するだけでよい。
+
+| エンドポイント | 用途 |
+|---|---|
+| `POST /api/command` `{"name":"ジン","text":"指示内容"}` | 社長指示。担当を2時間「作業中」にし日誌に記録（画面右上のフォームと同じ） |
+| `POST /api/command` `{"name":"ジン","text":"作業内容","status":"done"}` | **完了報告**。「完了✓」表示にし日誌に完了として記録 |
+| `GET /api/state` | `office_state.json` の現在値を返す（スクリプト連携用） |
+| `GET /activity` | `activity.json` があればその中身、無ければ `[]`（activity bridgeの受け口。404が出なくなる） |
+
+このリポジトリでは上記ダッシュボード用ファイル一式（采配盤・更新ログ・ランキング）も同梱済みで、
+起動すれば司令室パネルが「未接続」なしで点灯する。
+
 ## 任意: 実稼働の自動検知（activity bridge）
 「ローカルのAIツールが実際に動いたら該当キャラを作業中にする」高度機能のフック（`?activity_url=` で接続）。
 必須ではなく、`office_state.json` を手で/スクリプトで書くだけでも全機能は成立する。
