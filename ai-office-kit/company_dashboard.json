@@ -1,8 +1,8 @@
 {
-  "objective": "3戦略策定完了 — strategy/ に納品済み。社長決裁4点（W1実装/SNS開設/ギフティング/EDIX予算）待ち",
+  "objective": "決裁1〜3承認済み — W1は外注依頼書を送付するだけ。SNS開設とギフティング準備を実行中",
   "approvals": {
-    "pending": 3,
-    "estimated_review_time": "約30分（統合戦略サマリーと決裁事項3点の確認）"
+    "pending": 1,
+    "estimated_review_time": "外注依頼書の送付（添付3ファイル同封・約10分）"
   },
   "revenue": {},
   "ai_cost": {
