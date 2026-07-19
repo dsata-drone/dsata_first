@@ -17,6 +17,7 @@ GitHub Actions の定期実行(cron)から呼ばれる想定。ローカル実�
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -115,6 +116,54 @@ def rule_based_decide(names, st, taskboard, now):
     return {"assignments": assignments, "log_lines": [], "escalations": []}
 
 
+def daily_knowledge_update(st, taskboard, now):
+    """ライブラの自動ナレッジ更新。毎日7時以降の最初のサイクルで、
+    前日の成果(コミット・日誌)を日次ダイジェストとして書き出し、更新ログに1行追記する。"""
+    digest_dir = os.path.join(OFFICE, "AIチーム_ナレッジ", "日次ダイジェスト")
+    os.makedirs(digest_dir, exist_ok=True)
+    today = now.strftime("%Y-%m-%d")
+    path = os.path.join(digest_dir, f"{today}.md")
+    if now.hour < 7 or os.path.exists(path):
+        return False
+
+    yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    try:
+        commits = subprocess.run(
+            ["git", "log", "--since", f"{yesterday} 00:00 +0900",
+             "--until", f"{today} 07:00 +0900", "--format=- %s", "--no-merges"],
+            capture_output=True, text=True, cwd=REPO, timeout=30).stdout.strip()
+    except Exception:
+        commits = "(取得失敗)"
+    done_now = [f"- {o['name']}: {o.get('task','')}" for o in st.get("overrides", [])
+                if o.get("status") == "done"]
+    body = (
+        f"# 日次ダイジェスト {today}(ライブラ自動更新)\n\n"
+        f"## 前日のコミット(成果の記録)\n{commits or '- (なし)'}\n\n"
+        f"## 直近の完了報告\n" + ("\n".join(done_now) or "- (なし)") + "\n\n"
+        f"## 業務日誌(直近)\n" + "\n".join(f"- {l}" for l in st.get("log", [])[-10:]) + "\n\n"
+        f"## 采配盤スナップショット\n```\n{taskboard.strip()}\n```\n"
+    )
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(body)
+    evolog = os.path.join(OFFICE, "AIチーム_ナレッジ", "_更新ログ.md")
+    try:
+        with open(evolog, encoding="utf-8") as f:
+            cur = f.read().rstrip("\n")
+        with open(evolog, "w", encoding="utf-8") as f:
+            f.write(cur + f"\n{today} | ライブラ | 日次ダイジェストを自動更新(前日の成果と采配を記録)\n")
+    except OSError:
+        pass
+    hm = now.strftime("%H:%M")
+    st["overrides"] = [o for o in st.get("overrides", []) if o.get("name") != "ライブラ"]
+    st["overrides"].append({
+        "name": "ライブラ", "status": "done",
+        "task": f"日次ダイジェスト({today})を自動更新",
+        "at": now.isoformat(timespec="seconds"),
+    })
+    st.setdefault("log", []).append(f"{hm} ライブラ: おはようございます。日次ダイジェストを更新しました")
+    return True
+
+
 def taskboard_blockers(taskboard):
     lines, in_section = [], False
     for line in taskboard.splitlines():
@@ -168,8 +217,9 @@ def main():
         print(json.dumps({"fatal": repr(e)}, ensure_ascii=False))
         return 1
 
-    # 1. 満了整理
+    # 1. 満了整理 + 日次ナレッジ更新(ライブラ・毎朝7時以降の初回)
     summary["expired"] = expire_finished(st, now)
+    summary["daily_digest"] = daily_knowledge_update(st, taskboard, now)
 
     # 2. 采配(Claude → ルールベースの順)
     decision = brain.decide(names, st, taskboard)
