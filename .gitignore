@@ -1,3 +1,4 @@
 __pycache__/
 *.pyc
 office_state.json.tmp
+office_snapshot.html
