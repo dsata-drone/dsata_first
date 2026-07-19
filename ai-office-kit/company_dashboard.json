@@ -1,8 +1,8 @@
 {
-  "objective": "戦略プロジェクト始動 — WEB/SNS/インフルエンサーの3戦略を策定し実行に移す（全員稼働）",
+  "objective": "3戦略策定完了 — strategy/ に納品済み。社長決裁4点（W1実装/SNS開設/ギフティング/EDIX予算）待ち",
   "approvals": {
-    "pending": 1,
-    "estimated_review_time": "約15分（W1実装手順書の確認）"
+    "pending": 3,
+    "estimated_review_time": "約30分（統合戦略サマリーと決裁事項3点の確認）"
   },
   "revenue": {},
   "ai_cost": {
