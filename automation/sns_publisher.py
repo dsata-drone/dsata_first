@@ -28,6 +28,8 @@ import urllib.request
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import x_publisher
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(BASE)
 PENDING = os.path.join(REPO, "sns", "queue", "pending")
@@ -93,14 +95,23 @@ def process_queue(now=None):
             sched = job.get("scheduled_at")
             if sched and datetime.fromisoformat(sched) > now:
                 continue  # まだ時刻前(heldにも数えない)
-            if not user_id or not token:
-                results["held"].append(f"{name}: IG認証情報が未設定のため保留")
-                continue
-            container = _create_container(user_id, token, job)
-            pub = _post(f"{user_id}/media_publish", {
-                "creation_id": container, "access_token": token})
+            platform = job.get("platform", "instagram")
+            if platform == "x":
+                tweet_id = x_publisher.post(job)
+                if tweet_id is None:
+                    results["held"].append(f"{name}: X認証情報が未設定のため保留")
+                    continue
+                media_id = f"tweet:{tweet_id}"
+            else:
+                if not user_id or not token:
+                    results["held"].append(f"{name}: IG認証情報が未設定のため保留")
+                    continue
+                container = _create_container(user_id, token, job)
+                pub = _post(f"{user_id}/media_publish", {
+                    "creation_id": container, "access_token": token})
+                media_id = pub.get("id", "")
             job["_published_at"] = now.isoformat(timespec="seconds")
-            job["_media_id"] = pub.get("id", "")
+            job["_media_id"] = media_id
             with open(os.path.join(SENT, name), "w", encoding="utf-8") as f:
                 json.dump(job, f, ensure_ascii=False, indent=2)
             os.remove(src)

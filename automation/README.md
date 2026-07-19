@@ -38,6 +38,13 @@ GitHub Actions cron(毎時) ──▶ orchestrator.py の1サイクル
 - 長期トークンは60日で失効するため、失効前の更新が必要(失効すると投稿失敗
   →エスカレーション通知が飛ぶので気づける)
 
+## ①-3 X(Twitter)自動投稿(x_publisher.py)
+同じ `sns/queue/pending/` に `"platform": "x"` のジョブを置くと、X API v2で自動投稿。
+- 必要Secrets: `X_API_KEY` / `X_API_SECRET` / `X_ACCESS_TOKEN` / `X_ACCESS_SECRET`
+  (developers.x.com でアプリ作成→キー4点を発行。無料枠で月数百件投稿可能)
+- 画像は最大4枚、**リポジトリ内のパス指定でOK**(公開URL不要 — IGとの違い)
+- OAuth 1.0a署名は標準ライブラリで実装済み(追加依存なし)
+
 ## ② 常時稼働ループ(GitHub Actions)
 `.github/workflows/office-autorun.yml` が毎時23分に1サイクル実行する。
 加えて `outbox/pending/` や采配盤(JOHN_TASKBOARD.md)への push でも即時実行される。

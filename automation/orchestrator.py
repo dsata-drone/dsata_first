@@ -244,7 +244,8 @@ def main():
         sns = sns_publisher.process_queue(now)
         summary["sns"] = sns
         for line in sns["posted"]:
-            st.setdefault("log", []).append(f"{hm} ルナ: 【自動投稿】Instagramへ投稿しました({line.split(':')[0]})")
+            s_name = line.split(":")[0]
+            st.setdefault("log", []).append(f"{hm} ルナ: 【自動投稿】SNSへ投稿完了({s_name})")
 
     # 4. エスカレーション判定
     issues = list(decision.get("escalations", []))
