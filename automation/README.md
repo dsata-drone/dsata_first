@@ -29,6 +29,15 @@ GitHub Actions cron(毎時) ──▶ orchestrator.py の1サイクル
 - 送信失敗 → `outbox/failed/` に移動し、人間へエスカレーション
 - 送信チャネル未設定なら送らずに保留(誤送信しない)
 
+## ①-2 Instagram自動投稿(sns_publisher.py)
+`sns/queue/pending/` に投稿ジョブ(JSON)を置くと、`scheduled_at` を過ぎた最初の
+サイクルで Meta Graph API 経由で自動投稿される(image/carousel/reel対応)。
+- 必要Secrets: `IG_USER_ID` / `IG_ACCESS_TOKEN`(未設定の間は投稿されず保留)
+- 画像・動画は**公開URL**が必要(Metaのサーバーが取得するため)
+- 投稿成功は `sent/`+業務日誌に記録、失敗はエスカレーション
+- 長期トークンは60日で失効するため、失効前の更新が必要(失効すると投稿失敗
+  →エスカレーション通知が飛ぶので気づける)
+
 ## ② 常時稼働ループ(GitHub Actions)
 `.github/workflows/office-autorun.yml` が毎時23分に1サイクル実行する。
 加えて `outbox/pending/` や采配盤(JOHN_TASKBOARD.md)への push でも即時実行される。

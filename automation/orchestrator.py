@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import brain
 import dispatch
 import notify
+import sns_publisher
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(BASE)
@@ -233,18 +234,24 @@ def main():
     # 3. 送信キュー
     if dry_run:
         summary["outbox"] = {"skipped": "dry-run"}
+        summary["sns"] = {"skipped": "dry-run"}
     else:
         outbox = dispatch.process_outbox()
         summary["outbox"] = outbox
         hm = now.strftime("%H:%M")
         for line in outbox["sent"]:
             st.setdefault("log", []).append(f"{hm} ジン: 【自動送信】{line}")
+        sns = sns_publisher.process_queue(now)
+        summary["sns"] = sns
+        for line in sns["posted"]:
+            st.setdefault("log", []).append(f"{hm} ルナ: 【自動投稿】Instagramへ投稿しました({line.split(':')[0]})")
 
     # 4. エスカレーション判定
     issues = list(decision.get("escalations", []))
     issues += [f"ブロッカー: {b}" for b in taskboard_blockers(taskboard)]
     if not dry_run:
         issues += [f"送信失敗: {x}" for x in summary.get("outbox", {}).get("failed", [])]
+        issues += [f"Instagram投稿失敗: {x}" for x in summary.get("sns", {}).get("failed", [])]
     summary["escalations"] = issues
     if issues:
         text = "\n".join(f"・{i}" for i in issues)
