@@ -1,0 +1,23 @@
+AIバーチャルオフィス テンプレート（メンバー空・完全ニュートラル版）
+
+■ すぐ試す（Mac/Windows 共通・Python が入っていれば）
+  1) このフォルダを好きな場所に置く
+  2) フォルダ内でターミナル/コマンドプロンプトを開き、次を実行:
+        python3 -m http.server 8899
+        （Windowsで動かない場合は  py -m http.server 8899 ）
+  3) ブラウザで  http://localhost:8899/ai_office_template.html  を開く
+     → 部屋だけの空オフィスが表示されます（メンバーはまだ0人）
+
+■ 自分のメンバーを入れる
+  docs/04_member_schema.md を見て、ai_office_template.html の
+  「const TEAM = [ ]」に自分のメンバーを追記してください。
+
+■ 作業状態を動かす
+  office_state.json を書き換えると、担当キャラが
+  「作業中 → 完了 → （12時間で）休憩」と自動で動きます。
+  書き方は docs/02_state_system_spec.md。
+
+■ 詳しい仕様
+  docs/README.md から順に読んでください（レイアウト/状態/ライフサイクル/セットアップ）。
+
+※ file:// で直接開くと動きません（JSON読込のため必ずローカルサーバー経由で）。

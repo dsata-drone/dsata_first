@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIチーム オフィス（テンプレート）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:#22262e;font-family:"DotGothic16",monospace;color:#f0f2fa;
+    display:flex;flex-direction:column;height:100vh;overflow:hidden;padding:8px 10px;
+  }
+  h1{font-size:15px;letter-spacing:3px;margin:0 0 7px;color:#ffd24a;text-shadow:2px 2px 0 #000;flex:0 0 auto;text-align:center}
+  #layout{flex:1 1 auto;display:flex;gap:12px;min-height:0}
+  #stagewrap{flex:0 0 auto;height:100%;display:flex;align-items:flex-start}
+  #stage{
+    image-rendering:pixelated;height:100%;width:auto;max-width:100%;
+    aspect-ratio:384/584;border:4px solid #565e84;outline:3px solid #14161c;border-radius:4px;background:#000;
+  }
+  #board{
+    flex:1 1 auto;min-width:300px;height:100%;overflow-y:auto;
+    background:#2b3149;border:3px solid #565e84;outline:3px solid #14161c;border-radius:4px;padding:6px 9px;font-size:11px;line-height:1.28;
+  }
+  #board table{width:100%;border-collapse:collapse}
+  #board th,#board td{text-align:left;padding:1px 5px;border-bottom:1px solid #444d70;vertical-align:top}
+  #board th{color:#ffd24a;font-weight:normal;font-size:10px;position:sticky;top:-6px;background:#2b3149}
+  #board tr:last-child td{border-bottom:none}
+  .st{padding:1px 5px;border-radius:3px;font-size:10px;white-space:nowrap}
+  .st-work{background:#2f7d4f}
+  .st-walk{background:#8a6d2f}
+  .st-rest{background:#7d4f8a}
+  .st-idle{background:#5a616e}
+  .grp{color:#9aa6d0;font-size:10px;white-space:nowrap}
+  .note{margin-top:6px;font-size:10px;line-height:1.35;color:#a9b2d4}
+  /* ===== 経営司令室(下半分) ===== */
+  #cmdcenter{margin-top:10px;border-top:2px solid #444d70;padding-top:8px}
+  #ccstatus{display:flex;gap:14px;align-items:center;font-size:10px;color:#8fa0c8;margin-bottom:8px;flex-wrap:wrap}
+  #ccstatus b{color:#6fd06a;font-weight:normal}
+  .ccdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#6fd06a;margin-right:5px;animation:ccblink 2.4s infinite}
+  @keyframes ccblink{0%,100%{opacity:1}50%{opacity:.35}}
+  #ccgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .ccpanel{background:#222842;border:1px solid #444d70;border-radius:5px;padding:8px 10px;min-height:120px;min-width:0}
+  .ccpanel h4{font-size:11px;color:#ffd24a;letter-spacing:1px;margin-bottom:6px;border-bottom:1px solid #3a4160;padding-bottom:3px}
+  .ccpanel h4 .sub{color:#7d89b0;font-size:9px;letter-spacing:0;margin-left:6px}
+  .ccobj{background:#2c3560;border-left:3px solid #ffd24a;padding:5px 8px;font-size:11px;color:#fff;margin-bottom:6px}
+  .ccobj .lbl{font-size:9px;color:#ffd24a;letter-spacing:1px;display:block}
+  .cckenta{background:#5a2830;border-left:3px solid #e05a5a;padding:5px 8px;font-size:11px;color:#ffd8d8;margin-bottom:6px;animation:ccblink 1.6s infinite}
+  .cctask{display:flex;align-items:center;gap:6px;font-size:10px;padding:2px 0;border-bottom:1px dashed #333a58}
+  .cctask .no{color:#7d89b0;font-size:9px;width:16px}
+  .cctask .tx{flex:1;min-width:0;color:#dbe2f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cctask .who{color:#8fa0c8;font-size:9px;white-space:nowrap}
+  .ccbar{width:52px;height:6px;background:#1a1f36;border-radius:3px;overflow:hidden;flex:none}
+  .ccbar>i{display:block;height:100%;background:linear-gradient(90deg,#3a7ac0,#6fd06a)}
+  .ccappr{margin-top:6px;font-size:10px;color:#ffd24a}
+  .ccappr b{background:#5a4a20;border:1px solid #ffd24a;border-radius:3px;padding:0 6px;margin-right:5px}
+  .ccmoneygrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:6px}
+  .ccmoney{background:#1c2340;border:1px solid #333a58;border-radius:4px;padding:5px 7px}
+  .ccmoney .k{font-size:8px;color:#7d89b0;letter-spacing:1px}
+  .ccmoney .v{font-size:15px;color:#fff;font-weight:bold;line-height:1.2}
+  .ccmoney .v.na{font-size:10px;color:#6b769c;font-weight:normal}
+  .ccmoney.hero .v{color:#6fd06a}
+  .ccminirow{display:flex;gap:10px;font-size:10px;color:#c8d2ec;flex-wrap:wrap;align-items:center}
+  .ccminirow b{color:#fff}
+  .ccmode{font-size:9px;margin-left:auto;color:#8fa0c8}
+  .ccmode b{color:#6fd06a;border:1px solid #3a5a40;border-radius:3px;padding:0 5px}
+  .ccventure{border-bottom:1px dashed #333a58;padding:3px 0;font-size:10px}
+  .ccventure .top{display:flex;gap:6px;align-items:baseline}
+  .ccventure .rank{color:#ffd24a;font-weight:bold}
+  .ccventure .nm{flex:1;min-width:0;color:#dbe2f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ccventure .sc{color:#6fd06a;font-weight:bold}
+  .ccventure .meta{color:#7d89b0;font-size:9px;padding-left:20px}
+  .ccphase{display:inline-block;border:1px solid #3a5a8a;color:#7ab4e8;border-radius:3px;padding:0 4px;font-size:8px;letter-spacing:1px;margin-right:4px}
+  .cclabstats{display:flex;gap:8px;font-size:9px;color:#8fa0c8;margin-bottom:5px;flex-wrap:wrap}
+  .cclabstats b{color:#fff;font-size:11px}
+  .ccpulsegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:6px}
+  .ccpulse{background:#1c2340;border:1px solid #333a58;border-radius:4px;padding:4px 6px;text-align:center}
+  .ccpulse .k{font-size:8px;color:#7d89b0;letter-spacing:1px}
+  .ccpulse .v{font-size:14px;font-weight:bold;color:#fff}
+  .ccpulse.ok .v{color:#6fd06a}.ccpulse.warn .v{color:#ffd24a}.ccpulse.bad .v{color:#e05a5a}
+  .cchealth{font-size:10px;padding:4px 8px;border-radius:4px;margin-bottom:6px}
+  .cchealth.ok{background:#1e3a26;color:#8fe0a0;border:1px solid #2f7d4f}
+  .cchealth.bad{background:#4a2028;color:#ffb0b0;border:1px solid #a03844;animation:ccblink 1.6s infinite}
+  .ccevo{font-size:10px;color:#c8d2ec;border-top:1px dashed #333a58;padding-top:5px;margin-top:2px}
+  .ccevo .lbl{color:#ffd24a;font-size:9px;letter-spacing:1px;display:block}
+  .ccblock{font-size:9px;color:#e8b0b0;padding-left:8px}
+  @media (max-width:760px){#ccgrid{grid-template-columns:1fr}}
+  @media (max-width:760px){
+    body{overflow:auto;height:auto;min-height:100vh}
+    #layout{flex-direction:column}
+    #stagewrap{height:auto;width:100%}
+    #stage{width:100%;height:auto}
+    #board{height:auto;min-width:0}
+  }
+</style>
+</head>
+<body>
+<h1>AIチーム オフィス</h1>
+<div id="layout">
+  <div id="stagewrap"><canvas id="stage" width="768" height="1168"></canvas></div>
+  <div id="board">
+    <table>
+      <thead><tr><th>部屋</th><th>名前</th><th>担当</th><th>担当タスク</th><th>状態</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="note" id="worklog" style="color:#d8e0f8"></div>
+    <!-- ===== 経営司令室(WHAT IS THE COMPANY ACHIEVING) ===== -->
+    <div id="cmdcenter">
+      <div id="ccstatus">
+        <span><span class="ccdot"></span><b>SYSTEM ONLINE</b></span>
+        <span>LAST UPDATE <b id="cc_last">--:--:--</b></span>
+        <span>NEXT CYCLE <b id="cc_next">--</b></span>
+      </div>
+      <div id="ccgrid">
+        <div class="ccpanel"><h4>TODAY'S COMMAND<span class="sub">本日の重点</span></h4><div class="body" id="cc_command">読込中…</div></div>
+        <div class="ccpanel"><h4>24H MONEY ENGINE<span class="sub">収益エンジン</span></h4><div class="body" id="cc_money">読込中…</div></div>
+        <div class="ccpanel"><h4>LAB LIVE<span class="sub">検証中の事業</span></h4><div class="body" id="cc_lab">読込中…</div></div>
+        <div class="ccpanel"><h4>COMPANY PULSE<span class="sub">全社状態</span></h4><div class="body" id="cc_pulse">読込中…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// チーム構成 — ここに自分のメンバーを定義（docs/office-template/04_member_schema.md）
+// load: 稼働率(0〜1)。低いほど休憩室にいる時間が長い。idle:true=常時待機
+// ============================================================
+const TEAM = [
+  // ▼ ここに自分のメンバーを追加（docs/office-template/04_member_schema.md 参照）
+  //   room は下の ROOMS の name と一致させること。
+  // { room:"ROOM 01", name:"", role:"", task:"", load:.8,
+  //   hair:"#4a3020", shirt:"#2e3440", pants:"#20242e",
+  //   acc:["tie:#c04a3e"], desk:{x:3,y:46}, door:53 },
+];
+
+// ---- クエリパラメータ(activity_url / state_url などで使用) -----------------
+// ※ AI使用枠バー(Claude / Codex / Claude Code)は削除しました。
+const qp=new URLSearchParams(location.search);
+
+const cv=document.getElementById("stage"), ctx=cv.getContext("2d");
+ctx.imageSmoothingEnabled=false;
+const S=2;                 // 内部解像度スケール(描き込み用)
+const W=384,H=584;         // 論理座標系(5フロア構成: AI LABを追加)
+
+// ---- レイアウト -------------------------------------------------------
+const WALL_Y=30, BASE_Y=34;
+const WALK_Y=132;    // 1階(row1/row2)用の廊下
+const WALK_Y2=274;   // 2階(row3=法務/契約/経理)用の廊下
+const WALK_Y3=386;   // 3階(row4=ブレイン)用の廊下
+const WALK_Y4=490;   // 4階(row5=AI LAB)用の廊下
+const BREAK_X=322, BREAK_IN=336;
+const DESK_W=46;
+const ROOMS=[
+  {x:0,  y:34, w:105,h:78, c1:"#8093d8",c2:"#7486ca", name:"ROOM 01"},
+  {x:105,y:34, w:105,h:78, c1:"#72c2a8",c2:"#66b49b", name:"会議室"},
+  {x:210,y:34, w:106,h:78, c1:"#a48ad8",c2:"#977fc9", name:"ROOM 02"},
+  {x:0,  y:146,w:105,h:110,c1:"#e08cb0",c2:"#d180a3", name:"ROOM 03"},
+  {x:105,y:146,w:105,h:110,c1:"#7fc46e",c2:"#72b562", name:"ROOM 04"},
+  {x:210,y:146,w:106,h:110,c1:"#e09a5e",c2:"#d18d52", name:"ROOM 05"},
+  {x:0,  y:290,w:105,h:78, c1:"#7a86c0",c2:"#6e7ab2", name:"ROOM 06"},
+  {x:105,y:290,w:105,h:78, c1:"#6fb2b8",c2:"#63a4aa", name:"ROOM 07"},
+  {x:210,y:290,w:106,h:78, c1:"#c0a85e",c2:"#b29a52", name:"ROOM 08"},
+  {x:0,  y:402,w:316,h:72, c1:"#2b3042",c2:"#262b3a", name:"LAB 01"}, // 司令室(ダークな最新モニタールーム)
+  {x:0,  y:508,w:316,h:72, c1:"#4a4468",c2:"#443f60", name:"LAB 02"},    // 新規事業検証ラボ
+];
+const DOORS=[53,158,263];
+const SPOTS=[
+  {x:342,y:93, pose:"sit",  dir:"down", taken:false},
+  {x:360,y:93, pose:"sit",  dir:"down", taken:false},
+  {x:354,y:172,pose:"lie",  dir:"down", taken:false},
+  {x:336,y:206,pose:"sit",  dir:"right",taken:false},
+  {x:368,y:206,pose:"sit",  dir:"left", taken:false},
+  {x:336,y:52, pose:"stand",dir:"up",   taken:false},
+];
+const WORK_BUBBLES=["なるほど！","できた！","ふむふむ","むむ…","ヨシ！","要確認"];
+const REST_BUBBLES=["Zzz…","ふぅ〜","☕"];
+const IDLE_BUBBLES=["待機中…","再開待ち","☕","Zzz…"];
+const DESK_BUBBLES=["スタンバイ","指示待ち","…","☕"];
+
+// ---- 色ユーティリティ -----------------------------------------------------
+function shade(hex,amt){
+  const n=parseInt(hex.slice(1),16);
+  const f=v=>Math.max(0,Math.min(255,v+amt));
+  const r=f(n>>16),g=f((n>>8)&255),b=f(n&255);
+  return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+// ---- 高精細スプライト(20x28 実ピクセル = 論理10x14) ------------------------
+const PAL={O:"#3a3029",S:"#f8d0a0",T:"#e2b184",E:"#26201c",W:"#ffffff"};
+// 2.5頭身チビキャラ(カイロ風): 頭が全体の約6割・大きな黒目・短い胴体
+const BODY20={
+down:[
+"....OOOOOOOOOOOO....",
+"..OOHHHHHHHHHHHHOO..",
+".OHHHHHHHHHHHHHHHHO.",
+".OHGGHHHHHHHHHHHHHO.",
+"OHHGGHHHHHHHHHHHHHHO",
+"OHHHHHHHHHHHHHHHHHHO",
+"OHHSSSSSSSSSSSSSSHHO",
+"OHSSSSSSSSSSSSSSSSHO",
+"OSSEESSSSSSSSSSEESSO",
+"OSSEESSSSSSSSSSEESSO",
+"OTSSSSSSSSSSSSSSSSTO",
+".OSSSSSSSEESSSSSSSO.",
+".OOSSSSSSSSSSSSSSOO.",
+"...OOSSSSSSSSSSOO...",
+"....OBBBBBBBBBBO....",
+"...OBBBBBBBBBBBBO...",
+"..OSBBBBBBBBBBBBSO..",
+"..OSBBBBBBBBBBBBSO..",
+"...OBBBBBBBBBBBBO...",
+"...ODDDDDDDDDDDDO...",
+],
+up:[
+"....OOOOOOOOOOOO....",
+"..OOHHHHHHHHHHHHOO..",
+".OHHHHHHHHHHHHHHHHO.",
+".OHGGHHHHHHHHHHHHHO.",
+"OHGGHHHHHHHHHHHHHHHO",
+"OHHHHHHHHHHHHHHHHHHO",
+"OHHHHHHHHHHHHHHHHHHO",
+"OHHHHHHHHHHHHHHHHHHO",
+"OHHHHHHHHHHHHHHHHHHO",
+"OHHHHHHHHHHHHHHHHHHO",
+"OFHHHHHHHHHHHHHHHHFO",
+".OFHHHHHHHHHHHHHHFO.",
+".OOHHHHHHHHHHHHHHOO.",
+"...OOHHHHHHHHHHOO...",
+"....OBBBBBBBBBBO....",
+"...OBBBBBBBBBBBBO...",
+"..OSBBBBBBBBBBBBSO..",
+"..OSBBBBBBBBBBBBSO..",
+"...OBBBBBBBBBBBBO...",
+"...ODDDDDDDDDDDDO...",
+],
+right:[
+"....OOOOOOOOOOOO....",
+"..OOHHHHHHHHHHHHOO..",
+".OHHHHHHHHHHHHHHHHO.",
+".OHHGGHHHHHHHHHHHHO.",
+"OHHGGHHHHHHHHHHHHHHO",
+"OHHHHHHHHHHHHHHHHHHO",
+"OHHHHHHHHHSSSSSSSSSO",
+"OHHHHHHHHSSSSSSSSSSO",
+"OHHHHHHHHSSSSSEESSSO",
+"OHHHHHHHHSSSSSEESSSO",
+"OFHHHHHHHSSSSSSSSSSO",
+".OFHHHHHHSSSSSEESSO.",
+".OOHHHHHSSSSSSSSSOO.",
+"...OOHHHSSSSSSSOO...",
+"....OBBBBBBBBBBO....",
+"...OBBBBBBBBBBBBO...",
+"..OSBBBBBBBBBBBBSO..",
+"..OSBBBBBBBBBBBBSO..",
+"...OBBBBBBBBBBBBO...",
+"...ODDDDDDDDDDDDO...",
+],
+};
+BODY20.left=BODY20.right.map(r=>[...r].reverse().join(""));
+// 行長チェック(開発用)
+for(const d in BODY20)BODY20[d].forEach((r,i)=>{if(r.length!==20)console.error("sprite row",d,i,r.length);});
+
+function paintLegs(g,P,variant){
+  // チビキャラ用の短い足
+  const O=PAL.O,Q=shade(P,-36);
+  const leg=(x,lift)=>{
+    g.fillStyle=O;g.fillRect(x-1,20,6,7-lift);
+    g.fillStyle=P;g.fillRect(x,21,4,3-lift);
+    g.fillStyle=Q;g.fillRect(x,24-lift,4,2);
+  };
+  if(variant==="stand"){leg(5,0);leg(11,0);}
+  else if(variant==="walkA"){leg(4,0);leg(12,2);}
+  else if(variant==="walkB"){leg(4,2);leg(12,0);}
+  else{ // sit
+    g.fillStyle=O;g.fillRect(4,20,12,6);
+    g.fillStyle=P;g.fillRect(5,21,10,3);
+    g.fillStyle=Q;g.fillRect(5,23,10,1);
+  }
+}
+// 職業別アクセサリ(カイロ風): メガネ/サングラス/キャップ/ベレー帽/ヘッドホン/ネクタイ/ひげ
+function paintAcc(g,w,dir){
+  for(const a of (w.acc||[])){
+    const[type,col]=a.split(":");
+    if(type==="glasses"||type==="sunglasses"){
+      if(dir==="up")continue;
+      const dark=type==="sunglasses"?"#101014":"#232a33";
+      g.fillStyle=dark;
+      if(dir==="down"){g.fillRect(2,8,5,3);g.fillRect(13,8,5,3);g.fillRect(7,9,6,1);}
+      else if(dir==="right"){g.fillRect(13,8,5,3);g.fillRect(8,9,5,1);}
+      else{g.fillRect(2,8,5,3);g.fillRect(7,9,5,1);}
+      if(type==="glasses"){ // レンズの光
+        g.fillStyle="#bfe3ff";
+        if(dir==="down"){g.fillRect(3,9,2,1);g.fillRect(14,9,2,1);}
+        else if(dir==="right")g.fillRect(14,9,2,1);
+        else g.fillRect(4,9,2,1);
+      }
+    }
+    else if(type==="cap"){
+      const c=col||"#444",c2=shade(c,-36);
+      g.fillStyle=PAL.O;g.fillRect(3,0,14,1);
+      g.fillStyle=c;g.fillRect(3,1,14,2);g.fillRect(2,3,16,2);
+      g.fillStyle=shade(c,30);g.fillRect(4,1,5,1);
+      g.fillStyle=c2;
+      if(dir==="down")g.fillRect(2,5,16,2);
+      else if(dir==="right")g.fillRect(12,5,8,2);
+      else if(dir==="left")g.fillRect(0,5,8,2);
+      else g.fillRect(2,5,16,1);
+    }
+    else if(type==="beret"){
+      const c=col||"#5a4ab0";
+      g.fillStyle=PAL.O;g.fillRect(3,0,13,1);
+      g.fillStyle=c;g.fillRect(2,1,15,2);g.fillRect(1,3,13,2);
+      g.fillStyle=shade(c,-36);g.fillRect(14,3,4,2);
+      g.fillStyle=shade(c,36);g.fillRect(9,0,2,1); // ちょん
+    }
+    else if(type==="headphones"){
+      const c=col||"#2a2e38";
+      g.fillStyle=c;g.fillRect(4,0,12,2);
+      g.fillRect(0,7,3,5);g.fillRect(17,7,3,5);
+      g.fillStyle=shade(c,40);g.fillRect(1,8,1,3);g.fillRect(18,8,1,3);
+      g.fillStyle="#e0483c";g.fillRect(0,9,1,2);g.fillRect(19,9,1,2);
+    }
+    else if(type==="tie"&&dir==="down"){
+      const c=col||"#c0392b";
+      g.fillStyle=shade(c,20);g.fillRect(9,14,2,1);
+      g.fillStyle=c;g.fillRect(9,15,2,3);
+      g.fillStyle=shade(c,-40);g.fillRect(9,18,2,1);
+    }
+    else if(type==="mustache"){
+      g.fillStyle="#4a3a30";
+      if(dir==="down"){g.fillRect(5,10,4,1);g.fillRect(11,10,4,1);g.fillRect(4,9,2,1);g.fillRect(14,9,2,1);}
+      else if(dir==="right")g.fillRect(12,10,5,1);
+      else if(dir==="left")g.fillRect(3,10,5,1);
+    }
+  }
+}
+function makeSprite(w,dir,legs){
+  const c=document.createElement("canvas");c.width=20;c.height=28;
+  const g=c.getContext("2d");
+  const map={O:PAL.O,S:PAL.S,T:PAL.T,E:PAL.E,W:PAL.W,
+    H:w.hair,G:shade(w.hair,46),F:shade(w.hair,-34),
+    B:w.shirt,D:shade(w.shirt,-34)};
+  BODY20[dir].forEach((row,y)=>{[...row].forEach((ch,x)=>{
+    const col=map[ch];
+    if(col){g.fillStyle=col;g.fillRect(x,y,1,1);}
+  });});
+  paintLegs(g,w.pants,legs);
+  paintAcc(g,w,dir);
+  // 陰影(source-atopでキャラのシルエット内だけに適用)
+  g.globalCompositeOperation="source-atop";
+  g.fillStyle="rgba(20,16,30,.14)"; g.fillRect(14,3,6,23);   // 右側の陰
+  g.fillStyle="rgba(255,250,240,.12)"; g.fillRect(2,2,5,7);  // 左上のハイライト
+  g.globalCompositeOperation="source-over";
+  return c;
+}
+
+// ---- 社員 --------------------------------------------------------------
+function freeSpot(){
+  const o=SPOTS.filter(s=>!s.taken);
+  return o.length?o[Math.floor(Math.random()*o.length)]:null;
+}
+function workDur(w){return 6+w.load*22+Math.random()*6;}
+function restDur(w){return 4+(1-w.load)*24+Math.random()*6;}
+const workers=TEAM.map(t=>{
+  const w={...t, seat:{x:t.desk.x+DESK_W/2, y:t.desk.y+33},
+    walkY:(t.desk.y>500?WALK_Y4:t.desk.y>390?WALK_Y3:t.desk.y>260?WALK_Y2:WALK_Y),   // 階ごとに使う廊下を分ける
+    dir:"up", walkT:0, frame:0, path:[], spot:null,
+    bubble:null, bubbleT:0, nextBubble:2+Math.random()*6,
+    lastActWall:Date.now(), restRetry:Math.random()*10, sprites:{}}; // 初期は"直近稼働"扱い=席で待機。12hはページ表示開始から計測
+  for(const dir of ["up","down","left","right"])
+    for(const leg of ["stand","walkA","walkB","sit"])
+      w.sprites[dir+"_"+leg]=makeSprite(w,dir,leg);
+  if(w.idle){
+    const s=freeSpot(); s.taken=true; w.spot=s;
+    w.state="rest"; w.timer=10+Math.random()*10;
+    w.x=s.x; w.y=s.y; w.dir=s.dir;
+  }else{
+    w.state="desk"; w.timer=workDur(w); w.liveUntil=0;
+    w.x=w.seat.x; w.y=w.seat.y;
+  }
+  return w;
+});
+
+function makePathToBreak(w,from,to){
+  const wy=w.walkY||WALK_Y;
+  return [{x:w.door,y:from.y},{x:w.door,y:wy},{x:BREAK_IN,y:wy},
+          {x:to.x,y:wy},{x:to.x,y:to.y}];
+}
+function makePathBack(w,from){
+  const wy=w.walkY||WALK_Y;
+  return [{x:from.x,y:wy},{x:BREAK_IN,y:wy},{x:w.door,y:wy},
+          {x:w.door,y:w.seat.y},{x:w.seat.x,y:w.seat.y}];
+}
+function makePathInBreak(from,to){
+  return [{x:from.x,y:WALK_Y},{x:to.x,y:WALK_Y},{x:to.x,y:to.y}];
+}
+
+// ---- 案2: 実稼働の検知(office_bridge.py の /activity) ---------------------
+// ローカルのClaude Code / Codex のセッションログが直近で更新されたときだけ
+// 該当キャラを「作業中」にする。プロジェクト名→担当の対応はここで編集。
+const ACTIVITY_MAP=[
+  // 実稼働の自動検知(任意機能)。プロジェクト名/キーワード → 担当メンバー名(TEAMのnameと一致)。
+  // 使う場合はここに対応表を書く。例:
+  // {match:"design|ui",          name:"（デザイナー名）"},
+  // {match:"code|impl|dev",       name:"（エンジニア名）"},
+  // {match:"research|market",     name:"（リサーチ担当名）"},
+  {match:".*", name:""},   // どれにも該当しない稼働の既定担当(空=割り当て無し)
+];
+const ACTIVITY_URL=qp.get("activity_url")||"activity";
+let actBridge=false;
+async function pollActivity(){
+  try{
+    const r=await fetch(ACTIVITY_URL,{cache:"no-store"});
+    if(!r.ok)throw new Error(r.status);
+    const list=await r.json();
+    actBridge=Array.isArray(list);
+    if(!actBridge)return;
+    const now=performance.now();
+    for(const a of list){
+      const path=String(a.path||"").toLowerCase();
+      const hit=ACTIVITY_MAP.find(m=>new RegExp(m.match,"i").test(path));
+      if(!hit)continue;
+      const w=workers.find(x=>x.name===hit.name&&!x.idle);
+      if(w)w.liveUntil=now+90000;   // 検知から90秒間は作業中扱い
+    }
+  }catch(e){actBridge=false;}
+}
+pollActivity();
+setInterval(pollActivity,15000);
+
+// ---- Claude(チャット)作業の反映(office_state.json) ------------------------
+// このチャットでClaudeが作業した内容(完了報告・作業中指示)をオフィスへ反映。
+// ai_office.html と同じフォルダに office_state.json を置くと読み込まれる。
+const STATE_URL=qp.get("state_url")||"office_state.json";
+let stateLog=[];
+function renderLog(){
+  const el=document.getElementById("worklog");
+  if(!el)return;
+  el.innerHTML=stateLog.length?("【業務日誌】<br>"+stateLog.map(l=>"📋 "+l).join("<br>")):"";
+}
+async function pollState(){
+  try{
+    const r=await fetch(STATE_URL,{cache:"no-store"});
+    if(!r.ok)throw new Error(r.status);
+    const st=await r.json();
+    stateLog=Array.isArray(st.log)?st.log.slice(-4):[];
+    const now=performance.now();
+    for(const w of workers)w.manual=null;
+    for(const o of (st.overrides||[])){
+      const w=workers.find(x=>x.name===o.name);
+      if(!w)continue;
+      const active=!o.until||Date.parse(o.until)>Date.now();
+      if(!active)continue;
+      const at=o.at?Date.parse(o.at):NaN;                    // 作業完了/開始時刻
+      if(!isNaN(at))w.lastActWall=Math.max(w.lastActWall||0,at);
+      if(o.status==="done"&&!isNaN(at)&&Date.now()-at>3600e3)continue; // 完了表示は1時間まで
+      w.manual=o;
+      if(o.status==="working"&&!w.idle){
+        w.liveUntil=Math.max(w.liveUntil||0,now+60000);
+        w.lastActWall=Date.now();
+        if(w.state==="desk")w.state="live"; // タブ非表示でもrAF待ちせず即反映
+      }
+    }
+  }catch(e){}
+  renderLog();
+  if(typeof updateBoard==="function")updateBoard(); // rAFが止まっていても表は更新
+}
+pollState();
+setInterval(pollState,30000);
+
+// ---- ホバー --------------------------------------------------------------
+let hoverW=null, hoverHold=0;
+function pickWorker(e){
+  const r=cv.getBoundingClientRect();
+  const sx=(e.clientX-r.left)*W/r.width, sy=(e.clientY-r.top)*H/r.height;
+  let best=null,bd=1e9;
+  for(const w of workers){
+    const lie=(w.state==="rest"&&w.spot&&w.spot.pose==="lie");
+    const hw=lie?11:7, y1=lie?w.y-12:w.y-18, y2=w.y+3;
+    if(Math.abs(sx-w.x)<=hw && sy>=y1 && sy<=y2){
+      const d=Math.abs(sx-w.x)+Math.abs(sy-(w.y-8));
+      if(d<bd){bd=d;best=w;}
+    }
+  }
+  return best;
+}
+cv.addEventListener("mousemove",e=>{hoverW=pickWorker(e);hoverHold=0;cv.style.cursor=hoverW?"pointer":"default";});
+cv.addEventListener("mouseleave",()=>{if(hoverHold<=0)hoverW=null;});
+cv.addEventListener("pointerdown",e=>{const w=pickWorker(e);if(w){hoverW=w;hoverHold=2.5;}});
+function hoverText(w){
+  if(w.manual&&w.manual.status==="done"&&w.state!=="live")return "完了："+w.manual.task;
+  if(w.manual&&w.manual.status==="working")return "作業中(チャット指示)："+w.manual.task;
+  if(w.idle)return w.task;
+  if(w.state==="live")return "作業中："+w.task;
+  if(w.state==="desk")return "待機中(担当："+w.task+")";
+  if(w.state==="rest")return "休息中・12h以上稼働なし(担当："+w.task+")";
+  if(w.state==="toBreak")return "休憩室へ移動中";
+  return "席へ戻り中";
+}
+
+function isLive(w){return w.liveUntil&&performance.now()<w.liveUntil;}
+// 状態ライフサイクル: 作業完了→1hは完了✓ / 1〜12hは待機中(席) / 12h超は休憩室で休息
+const STALE_MS=12*3600e3;
+function isStale(w){return !w.idle&&Date.now()-(w.lastActWall||0)>STALE_MS;}
+function updateWorker(w,dt){
+  if(w.bubble){w.bubbleT-=dt;if(w.bubbleT<=0)w.bubble=null;}
+  else{
+    w.nextBubble-=dt;
+    if(w.nextBubble<=0){
+      const pool=w.idle?IDLE_BUBBLES:
+        (w.state==="live"?WORK_BUBBLES:
+         w.state==="desk"?DESK_BUBBLES:
+         w.state==="rest"?REST_BUBBLES:null);
+      if(pool)w.bubble=pool[Math.floor(Math.random()*pool.length)];
+      if(w.bubble)w.bubbleT=1.6;
+      w.nextBubble=4+Math.random()*7;
+    }
+  }
+  if(w.state==="desk"){          // 席で待機(稼働なし12h以内)
+    w.dir="up";
+    if(isLive(w)){w.state="live";w.lastActWall=Date.now();return;}
+    if(isStale(w)){              // 12時間稼働がない→休憩室で休息
+      w.restRetry=(w.restRetry??0)-dt;
+      if(w.restRetry<=0){
+        const s=freeSpot();
+        if(s){s.taken=true;w.spot=s;w.state="toBreak";
+          w.path=makePathToBreak(w,{x:w.x,y:w.y},s);
+          w.bubble="休息します";w.bubbleT=1.4;}
+        else w.restRetry=15;     // 休憩スペースが空くまで席で待つ
+      }
+    }
+  }
+  else if(w.state==="live"){     // 実稼働を検知しているときだけ「作業中」
+    w.dir="up"; w.lastActWall=Date.now();
+    if(!isLive(w)){w.state="desk";}
+  }
+  else if(w.state==="toBreak"||w.state==="toDesk"){
+    let step=40*dt;
+    while(step>0&&w.path.length){
+      const t=w.path[0],dx=t.x-w.x,dy=t.y-w.y,dist=Math.abs(dx)+Math.abs(dy);
+      if(dist<=step){w.x=t.x;w.y=t.y;step-=dist;w.path.shift();}
+      else{
+        if(Math.abs(dx)>.5){w.x+=Math.sign(dx)*step;w.dir=dx>0?"right":"left";}
+        else{w.y+=Math.sign(dy)*step;w.dir=dy>0?"down":"up";}
+        step=0;
+      }
+    }
+    w.walkT+=dt;w.frame=Math.floor(w.walkT*7)%2;
+    if(!w.path.length){
+      if(w.state==="toBreak"){w.state="rest";w.timer=restDur(w);w.dir=w.spot.dir;}
+      else{w.state=isLive(w)?"live":"desk";w.timer=workDur(w);w.dir="up";}
+    }
+  }
+  else if(w.state==="rest"){
+    if(w.idle){                        // 常時待機組は休憩室内をたまに移動
+      w.timer-=dt;
+      if(w.timer<=0){
+        const s=freeSpot();
+        if(s){
+          w.spot.taken=false; s.taken=true;
+          const from={x:w.x,y:w.y}; w.spot=s;
+          w.state="toBreak"; w.path=makePathInBreak(from,s);
+        }else w.timer=8;
+      }
+    }else{
+      const called=isLive(w);          // 稼働検知→即座に席へ
+      if(called||!isStale(w)){         // 新しい作業記録が付いたら席へ戻る
+        w.spot.taken=false;const from={x:w.x,y:w.y};w.spot=null;
+        w.state="toDesk";w.path=makePathBack(w,from);
+        if(called){w.bubble="お仕事だ！";w.bubbleT=1.4;}
+      }
+    }
+  }
+}
+
+// ---- 描画ヘルパ(論理座標→実ピクセル×2) ------------------------------------
+function px(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x*S),Math.round(y*S),Math.round(w*S),Math.round(h*S));}
+function dpx(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h);} // 実ピクセル
+function obox(x,y,w,h,c){px(x-1,y-1,w+2,h+2,PAL.O);px(x,y,w,h,c);}
+function txt(t,x,y,size,color,align){ctx.font=size+"px DotGothic16, monospace";ctx.textAlign=align||"left";ctx.fillStyle=color;ctx.fillText(t,x*S,y*S);}
+
+// ---- 背景・部屋 ---------------------------------------------------------
+function drawStatic(){
+  // 建物の壁(質感つき)
+  px(0,0,W,WALL_Y,"#cfc6b0"); px(0,0,W,3,"#b5ab94");
+  for(let x=0;x<W;x+=24)dpx(x*S,6,1,WALL_Y*S-14,"rgba(120,110,90,.18)"); // 壁パネルの継ぎ目
+  px(0,WALL_Y-2,W,2,"#bdb49e");
+  // 外壁の正面(擬似3/4ビューの高さ)
+  px(0,WALL_Y,W,8,"#a29a86"); px(0,WALL_Y,W,2,"#b7af9a");
+  px(0,WALL_Y+5,W,2,"#877e6a"); px(0,WALL_Y+7,W,1,"#6e6554");
+  for(let sx=14;sx<W-8;sx+=24)dpx(sx*S,(WALL_Y+2)*S,2,4*S,"rgba(90,80,60,.22)");
+  dpx(0,(WALL_Y+8)*S,W*S,4,"rgba(0,0,0,.2)");
+  // 窓
+  for(const wx of [8,88,190,288]){
+    px(wx-1,4,28,18,PAL.O);
+    px(wx,5,26,16,"#a8dcf4"); px(wx,5,26,5,"#cdeefc"); px(wx,17,26,4,"#8cc8e8");
+    px(wx+5,8,7,3,"#ffffff"); px(wx+15,12,6,2,"#eafaff");
+    px(wx+12,5,2,16,"#e8e0cc"); px(wx,12,26,2,"#e8e0cc");
+    dpx(wx*S,21*S,26*S,2,"#b0a890");
+  }
+  // 掛け時計
+  px(300,7,10,10,PAL.O);px(301,8,8,8,"#f4f4ee");dpx(303*S,9*S,4,4,"#e4e4da");
+  px(304,10,1,3,"#333");px(305,11,2,1,"#333");
+  // 廊下(暖色寄り)
+  for(let y=118;y<146;y+=12)for(let x=0;x<BREAK_X;x+=12){
+    px(x,y,12,Math.min(12,146-y),((x+y)/12)%2?"#bcb5a8":"#b0a99c");
+  }
+  dpx(0,118*S,BREAK_X*S,3,"rgba(0,0,0,.18)"); // 廊下上端の影
+  // 2階の廊下(row2とrow3の間)
+  for(let y=262;y<290;y+=12)for(let x=0;x<BREAK_X;x+=12){
+    px(x,y,12,Math.min(12,290-y),((x+y)/12)%2?"#bcb5a8":"#b0a99c");
+  }
+  dpx(0,262*S,BREAK_X*S,3,"rgba(0,0,0,.18)");
+  // 3階の廊下(row3とブレインの間)
+  for(let y=372;y<400;y+=12)for(let x=0;x<BREAK_X;x+=12){
+    px(x,y,12,Math.min(12,400-y),((x+y)/12)%2?"#bcb5a8":"#b0a99c");
+  }
+  dpx(0,372*S,BREAK_X*S,3,"rgba(0,0,0,.18)");
+  // 4階の廊下(ブレインとAI LABの間)
+  for(let y=478;y<506;y+=12)for(let x=0;x<BREAK_X;x+=12){
+    px(x,y,12,Math.min(12,506-y),((x+y)/12)%2?"#bcb5a8":"#b0a99c");
+  }
+  dpx(0,478*S,BREAK_X*S,3,"rgba(0,0,0,.18)");
+  // 各部屋の床(カーペット質感)
+  for(const r of ROOMS){
+    for(let y=r.y;y<r.y+r.h;y+=12)for(let x=r.x;x<r.x+r.w;x+=12){
+      px(x,y,Math.min(12,r.x+r.w-x),Math.min(12,r.y+r.h-y),((x+y)/12)%2?r.c1:r.c2);
+      if(((x/12)+(y/12))%3===0)dpx(x*S+8,y*S+8,2,2,"rgba(255,255,255,.10)"); // 毛足の光
+      if(((x/12)+(y/12))%3===1)dpx(x*S+16,y*S+14,2,2,"rgba(0,0,0,.10)");
+      dpx(x*S,y*S,12*S,1,"rgba(255,255,255,.05)"); dpx(x*S,y*S,1,12*S,"rgba(0,0,0,.06)"); // タイル目地
+    }
+    dpx(r.x*S,r.y*S,r.w*S,3,"rgba(0,0,0,.15)"); // 壁ぎわの影
+  }
+  // 休憩室床(木・板目)
+  for(let y=BASE_Y;y<H;y+=8){
+    px(BREAK_X,y,W-BREAK_X,8,(y/8)%2?"#d6a668":"#cc9c5e");
+    dpx(BREAK_X*S,y*S,(W-BREAK_X)*S,2,"rgba(90,55,20,.3)");
+    const off=((y/8)%2)?24:52;
+    dpx((BREAK_X)*S+off,y*S+6,2,10,"rgba(90,55,20,.25)"); // 板の継ぎ目
+    dpx((BREAK_X)*S+off+60,y*S+4,3,2,"rgba(70,40,15,.3)"); // 節
+  }
+  px(0,BASE_Y,W,3,"rgba(0,0,0,.15)");
+  // 休憩室ラグ
+  obox(330,152,48,28,"#7fae6a"); px(334,156,40,20,"#8fbe78");
+  px(336,158,36,1,"#7fae6a"); px(336,175,36,1,"#7fae6a");
+  for(let i=0;i<5;i++)dpx((338+i*7)*S,166*S,4,4,"rgba(255,255,255,.14)"); // 菱形風の柄
+  // 会議室(立体テーブル)
+  dpx(127*S,86*S,60*S,4,"rgba(0,0,0,.16)");
+  obox(128,60,58,26,"#8a6a3f");
+  px(129,61,56,4,"#a5834f"); px(130,62,54,2,"#b8945c");
+  dpx(132*S,68*S,50*S,1,"rgba(60,35,10,.35)"); dpx(132*S,76*S,50*S,1,"rgba(60,35,10,.25)"); // 木目
+  px(128,84,58,3,"#6e5228");                 // 前面
+  px(131,87,3,3,"#4c3818"); px(180,87,3,3,"#4c3818"); // 脚
+  for(const cx of [138,162])for(const cy of [52,90]){px(cx,cy,12,6,PAL.O);px(cx+1,cy+1,10,4,"#22242c");dpx((cx+1)*S,(cy+1)*S,10*S,2,"#3a3d48");}
+  px(150,68,14,8,"#f4f4f0"); px(152,70,10,1,"#c8c8c0"); px(152,72,10,1,"#c8c8c0");
+  // コピー機(前面つき)
+  dpx(2*S,140*S,18*S,4,"rgba(0,0,0,.16)");
+  obox(3,120,16,18,"#c8c8d0"); px(4,121,14,4,"#dcdce4"); px(6,126,10,3,"#3a3f52");
+  dpx(7*S,127*S,8,2,"#7ee0a0");
+  px(3,138,16,3,"#9498a4"); dpx((19)*S,(121)*S,2,20*S,"rgba(0,0,0,.2)"); // 前面+右側面
+  px(4,134,14,3,"#a8a8b4"); dpx(5*S,131*S,6,2,"#8a8f9e");
+  // 観葉植物
+  plant(94,44); plant(306,152); plant(370,44);
+  // 新フロアの備品
+  bookshelf(3,303); bookshelf(80,303); scales(46,352);        // 法務: 法律書棚×2+天秤
+  fileCabinet(108,303); paperStack(186,306);                  // 契約審査: キャビネット+書類の山と印鑑
+  ledgerShelf(213,303); safeBox(294,303);                     // 経理・税務: 帳簿棚+金庫
+  plant(196,352); plant(290,352);                             // 新フロアの緑
+  // ブレイン室(司令室)の内装
+  brainRoomDecor();
+  // --- ★3 上壁の作り込み: ホワイトボード + 額入りポスター ---
+  obox(116,3,22,15,"#f4f2ea"); px(117,4,20,13,"#fbfaf4");   // ホワイトボード
+  dpx(119*S,7*S,16*S,1,"#c7d8e6"); dpx(119*S,10*S,12*S,1,"#c7d8e6");
+  px(120,12,2,3,"#e0564a"); px(123,10,2,5,"#4a9ae0"); px(126,11,2,4,"#50b070"); px(129,9,2,6,"#e0c040"); // ミニ棒グラフ
+  px(117,17,3,1,"#b9b3a4"); px(134,17,3,1,"#b9b3a4");       // トレイ
+  obox(218,4,13,13,"#7a5230"); px(219,5,11,11,"#cfe4f2");   // 額入りポスター(海)
+  px(219,12,11,4,"#4aa0d8"); px(219,5,11,3,"#eaf6fc"); px(222,9,5,2,"#f2d27a"); // 海と太陽
+}
+// ---- 新フロア(法務/契約審査/経理・税務)の備品 ------------------------------
+function bookshelf(x,y){ // 法律書の本棚(幅24)
+  obox(x,y,24,28,"#7a5a34");
+  px(x,y,24,3,"#8f6c40");
+  dpx((x+22)*S,(y+3)*S,4,25*S,"rgba(0,0,0,.25)");
+  const cols=["#c05a4a","#4a78c0","#4aa06a","#c0a04a","#8a5ac0","#b05858"];
+  for(let s=0;s<3;s++){
+    const sy=y+4+s*8;
+    px(x+2,sy,20,7,"#5e4426");
+    for(let b=0;b<6;b++){px(x+3+b*3,sy+1,2,6,cols[(b+s)%6]);dpx((x+3+b*3)*S,(sy+2)*S,2*S,1,"rgba(255,255,255,.3)");}
+    px(x+2,sy+7,20,1,"#8f6c40");
+  }
+  dpx(x*S,(y+28)*S,24*S,3,"rgba(0,0,0,.2)");
+}
+function scales(x,y){ // 正義の天秤(法務)
+  px(x+5,y,2,10,"#c8a03a");
+  px(x+2,y,8,1,"#c8a03a");
+  px(x,y+1,1,2,"#c8a03a"); px(x+11,y+1,1,2,"#c8a03a");
+  px(x-1,y+3,4,2,"#e0bc50"); px(x+9,y+3,4,2,"#e0bc50");
+  px(x+3,y+10,6,2,"#8a6a20");
+  dpx(x*S,(y+12)*S,12*S,2,"rgba(0,0,0,.18)");
+}
+function fileCabinet(x,y){ // 書類キャビネット(契約審査)
+  obox(x,y,16,24,"#8a92a0");
+  px(x,y,16,2,"#a8b0bc");
+  for(let d=0;d<3;d++){
+    const dy=y+3+d*7;
+    px(x+1,dy,14,6,"#77808e"); px(x+1,dy,14,1,"#98a2b0");
+    px(x+6,dy+2,4,2,"#3a3f4a");
+    px(x+2,dy+1,3,1,"#d8dde6");
+  }
+  dpx(x*S,(y+24)*S,16*S,3,"rgba(0,0,0,.2)");
+}
+function paperStack(x,y){ // 書類の山+朱肉と印鑑(契約審査)
+  obox(x,y+8,22,8,"#b09a72"); px(x,y+8,22,2,"#c4ae82");
+  for(let i=0;i<4;i++)px(x+2,y+6-i*2,9,2,i%2?"#f2efe4":"#e6e2d2");
+  px(x+3,y-1,7,1,"#ffffff");
+  for(let i=0;i<3;i++)px(x+13,y+8-i*2,7,2,i%2?"#f2efe4":"#e6e2d2");
+  px(x+14,y+1,4,3,"#c03a30"); px(x+15,y-1,2,2,"#6a4a2a");
+  dpx(x*S,(y+16)*S,22*S,3,"rgba(0,0,0,.18)");
+}
+function ledgerShelf(x,y){ // 帳簿バインダー棚(経理・税務)
+  obox(x,y,20,20,"#7a6a4a");
+  px(x,y,20,2,"#8f7c56");
+  for(let s=0;s<2;s++){
+    const sy=y+3+s*8;
+    px(x+2,sy,16,7,"#5e5038");
+    for(let b=0;b<5;b++){px(x+3+b*3,sy+1,2,6,b%2?"#3a5e8a":"#4a6e9a");px(x+3+b*3,sy+3,2,1,"#e8e8e8");}
+    px(x+2,sy+7,16,1,"#8f7c56");
+  }
+  dpx(x*S,(y+20)*S,20*S,3,"rgba(0,0,0,.2)");
+}
+function safeBox(x,y){ // 金庫(経理・税務)
+  obox(x,y,18,20,"#4a5058");
+  px(x,y,18,2,"#5e646e"); px(x+1,y+2,16,16,"#3c424a");
+  px(x+6,y+7,6,6,"#c8ccd4"); dpx((x+8)*S,(y+9)*S,2*S,2*S,"#3c424a");
+  px(x+13,y+8,2,5,"#98a2b0");
+  dpx((x+2)*S,(y+3)*S,6,2,"rgba(255,255,255,.18)");
+  dpx(x*S,(y+20)*S,18*S,3,"rgba(0,0,0,.22)");
+}
+// ブレイン室(司令室・最新モニタールーム)の内装
+function brainRoomDecor(){
+  const t=performance.now()/300;
+  // ダーク床の走査グリッド(ハイテク感)
+  for(let x=6;x<312;x+=14)dpx(x*S,404*S,1,68*S,"rgba(90,160,220,.05)");
+  // 壁面の大型スクリーン×3(上壁 y401付近)
+  for(let i=0;i<3;i++){
+    const sx=24+i*96;
+    obox(sx,401,74,2,"#0e1420"); // 薄い設置面
+    px(sx,392,74,10,"#0b1018"); px(sx,392,74,1,"#2a4a6a"); // 画面
+    // 中身: i=0 世界地図 / i=1 折れ線 / i=2 板情報
+    if(i===0){
+      for(const[mx,my,mw] of [[8,3,10],[20,2,16],[40,4,12],[56,3,8]])px(sx+mx,392+my,mw,2,"#2f7d9a");
+      px(sx+30,392+5,3,2,"#e0c040");
+    }else if(i===1){
+      let py=398; for(let k=0;k<20;k++){const ny=396-Math.round(3+2.5*Math.sin(k/2+t));dpx((sx+6+k*3)*S,ny*S,3,2,"#4fe08d"); py=ny;}
+    }else{
+      for(let r=0;r<4;r++){px(sx+6,393+r*2,20,1,r%2?"#4a9ae0":"#3a7ac0");px(sx+40,393+r*2,24,1, (Math.floor(t)+r)%2?"#e05a6a":"#4fe08d");}
+    }
+    if(Math.floor(t*2+i)%2===0)dpx((sx+70)*S,393*S,2,2,"#6fd06a"); // 稼働ランプ
+  }
+  // サーバーラック(右側 x292)
+  obox(292,410,20,50,"#20242c"); px(292,410,20,2,"#2e343e");
+  for(let r=0;r<9;r++){
+    const ry=413+r*5;
+    px(293,ry,18,4,"#181c22");
+    const on=(Math.floor(t*3)+r)%3;
+    px(294,ry+1,2,2,on===0?"#6fd06a":"#264a2e"); px(297,ry+1,2,2,on===1?"#e0c040":"#4a4020");
+    dpx(300*S,(ry+1)*S,16,2,"rgba(60,120,200,.25)");
+  }
+  dpx(292*S,460*S,20*S,4,"rgba(0,0,0,.3)");
+  // 観葉植物+ラグ風の差し色
+  plant(20,462);
+  dpx(120*S,470*S,80*S,3,"rgba(90,160,220,.15)"); // 席前のLEDライン
+}
+function plant(x,y){
+  dpx((x-1)*S,(y+5)*S,10*S,3,"rgba(0,0,0,.16)"); // 影
+  obox(x,y,8,5,"#8a5a2f");px(x+1,y+1,6,1,"#a5744a");
+  px(x,y+5,8,2,"#5e3c1e");                        // 鉢の前面
+  dpx((x+1)*S,(y+3)*S,12,2,"#6e4523");
+  px(x+1,y-7,6,7,"#2f7d4f");px(x-1,y-5,3,4,"#3a9a5f");px(x+6,y-5,3,4,"#3a9a5f");
+  px(x+3,y-9,2,3,"#4ab070");dpx((x+2)*S,(y-6)*S,3,3,"#5cc584");dpx((x+5)*S,(y-3)*S,3,3,"#256a42");
+}
+// 擬似3/4ビュー: 壁=上面キャップ+高さのある正面+巾木+落ち影
+const WALL_H=10; // 正面の高さ(論理px)
+function wallFace(a,y,w){
+  px(a,y,w,WALL_H,"#b3ab97");                    // 正面
+  px(a,y,w,2,"#c9c1ac");                         // 上端ハイライト
+  px(a,y+WALL_H-3,w,2,"#948b76");                // 下部の陰
+  for(let sx=a+12;sx<a+w-6;sx+=24)dpx(sx*S,(y+2)*S,2,(WALL_H-4)*S,"rgba(90,80,60,.22)"); // パネル継ぎ目
+  px(a,y+WALL_H-1,w,1,"#6e6554");                // 巾木
+  dpx(a*S,(y+WALL_H)*S,w*S,4,"rgba(0,0,0,.22)"); // 床の落ち影
+}
+function hWall(y){
+  let x=0;
+  const gaps=DOORS.map(d=>[d-8,d+8]);
+  const segs=[];
+  for(const[g1,g2]of gaps){segs.push([x,g1]);x=g2;}
+  segs.push([x,BREAK_X-6]);
+  for(const[a,b]of segs)if(b>a){
+    const w=b-a;
+    dpx((a-1)*S,(y-4)*S,(w+2)*S,2,PAL.O);        // 輪郭(上)
+    px(a,y-3,w,3,"#ddd6c5"); dpx(a*S,(y-3)*S,w*S,1,"#efe9d8"); // 上面キャップ
+    wallFace(a,y,w);
+    dpx((a-1)*S,(y-4)*S,2,(WALL_H+4)*S,PAL.O);   // 輪郭(左右)
+    dpx(b*S,(y-4)*S,2,(WALL_H+4)*S,PAL.O);
+  }
+  // ドア開口部(まぐさ+縦枠+敷居)
+  for(const d of DOORS){
+    px(d-8,y-3,16,3,"#ddd6c5");                  // キャップ続き
+    px(d-8,y,16,4,"#b3ab97"); px(d-8,y,16,1,"#c9c1ac"); px(d-8,y+3,16,1,"#948b76"); // まぐさ
+    px(d-8,y+4,2,WALL_H-4,"#8a6d3f"); px(d+6,y+4,2,WALL_H-4,"#8a6d3f");             // 縦枠
+    px(d-6,y+4,12,WALL_H-4,"#9d8a6a"); px(d-6,y+4,12,2,"#b49e78");                  // 敷居(床)
+  }
+}
+function vWallSeg(x,y1,y2){
+  dpx((x-1)*S,(y1-1)*S,8*S,2,PAL.O);
+  dpx((x-1)*S,(y1-1)*S,2,(y2-y1+WALL_H+1)*S,PAL.O);
+  dpx((x+6)*S,(y1-1)*S,2,(y2-y1+WALL_H+1)*S,PAL.O);
+  px(x,y1,6,y2-y1,"#ddd6c5");                    // 上面キャップ(奥行き方向)
+  dpx(x*S,y1*S,2,(y2-y1)*S,"#efe9d8");           // 左端ハイライト
+  dpx((x+4)*S,y1*S,2,(y2-y1)*S,"#c9c1ac");
+  px(x,y2,6,WALL_H,"#b3ab97");                   // 手前端の正面(高さ)
+  px(x,y2,6,2,"#c9c1ac"); px(x,y2+WALL_H-3,6,2,"#948b76");
+  px(x,y2+WALL_H-1,6,1,"#6e6554");
+  dpx(x*S,(y2+WALL_H)*S,6*S,3,"rgba(0,0,0,.22)");
+}
+function signPlate(cx,y,text){
+  const w=text.length*8+10;
+  obox(cx-w/2,y,w,12,"#f0e8d0"); px(cx-w/2+1,y+1,w-2,2,"#fcf6e4");
+  dpx((cx-w/2)*S,(y+10)*S,w*S,2,"#cfc4a4");
+  txt(text,cx,y+9,15,"#4a3a20","center");
+}
+function vending(x,y,c){
+  obox(x,y,18,30,c); px(x+1,y+1,16,3,"rgba(255,255,255,.35)");
+  dpx((x+1)*S,(y+4)*S,2,25*S,"rgba(255,255,255,.2)");
+  px(x+2,y+5,14,12,"#f4f0ec");
+  px(x+3,y+7,3,6,"#4a9ae0");px(x+7,y+7,3,6,"#e0c040");px(x+11,y+7,3,6,"#50b070");
+  dpx((x+3)*S,(y+7)*S,6,3,"rgba(255,255,255,.5)");dpx((x+7)*S,(y+7)*S,6,3,"rgba(255,255,255,.5)");dpx((x+11)*S,(y+7)*S,6,3,"rgba(255,255,255,.5)");
+  px(x+2,y+20,14,4,"#332c2c"); px(x+3,y+25,5,3,"#332c2c");
+  dpx((x+3)*S,(y+21)*S,26,2,"#4a4242");
+  dpx((x-1)*S,(y+30)*S,20*S,4,"rgba(0,0,0,.16)"); // 落ち影
+  dpx((x+17)*S,(y+2)*S,2,28*S,"rgba(0,0,0,.22)"); // 右側面
+}
+// カイロ風・斜め立体机(天面+前面+奥行きモニタ+柔らか落ち影)。pc=職種別モニタ
+function drawDesk(d,hasChair,pc){
+  const x=d.x,y=d.y,w=DESK_W;
+  // 落ち影(2段で柔らかく)
+  dpx((x-2)*S,(y+19)*S,(w+4)*S,6,"rgba(0,0,0,.14)");
+  dpx((x-1)*S,(y+20)*S,(w+2)*S,4,"rgba(0,0,0,.13)");
+  // 前面パネル(高さ=立体感)
+  px(x,y+11,w,9,"#9a927f");
+  dpx(x*S,(y+11)*S,w*S,1,"#7f7865");            // 天面との境の陰
+  dpx((x+4)*S,(y+13)*S,2,5*S,"rgba(255,255,255,.06)"); // 前面の縦ハイライト
+  px(x,y+18,w,2,"#837b68");                      // 巾木
+  px(x+2,y+20,3,3,"#6f6857"); px(x+w-5,y+20,3,3,"#6f6857"); // 脚
+  // 天面スラブ
+  obox(x,y,w,11,"#c4bdad");
+  px(x,y,w,4,"#d2ccbd"); px(x,y,w,1,"#e2dccd");  // 奥側ハイライト
+  dpx(x*S,(y+9)*S,w*S,2,"rgba(0,0,0,.10)");      // 手前側の陰
+  dpx((x+w)*S,(y+2)*S,3,9*S,"rgba(0,0,0,.16)");  // 右側面
+  // 天面の小物
+  px(x+4,y+3,7,5,"#f5f2e9"); px(x+5,y+4,5,1,"#cbc6b8"); px(x+5,y+6,5,1,"#cbc6b8"); // 書類
+  px(x+w-9,y+4,4,4,"#e6564a"); dpx((x+w-9)*S,(y+4)*S,8,2,"#f2786c"); px(x+w-6,y+5,1,2,"#b23e34"); // マウス
+  px(x+w/2-6,y+6,12,3,"#a8aab4"); px(x+w/2-6,y+6,12,1,"#c4c6ce"); // キーボード
+  for(let i=0;i<5;i++)dpx((x+w/2-5+i*2)*S,(y+6)*S+1,2,2,"#e6e8f0");
+  // モニタ(職種ごとに特色)
+  const mx=x+w/2-7;
+  if(pc==="dual"){ // プログラマー: デュアルモニタ+コード画面
+    dpx((x+w/2-13)*S,(y-13)*S,26*S,3,"rgba(120,255,170,.12)");
+    for(const ox of [-13,1]){
+      const bx=x+w/2+ox;
+      px(bx+4,y+1,4,2,"#3a3f4a");
+      obox(bx,y-10,12,11,"#22262e");
+      px(bx,y-10,12,1,"#3a4050");
+      px(bx+1,y-8,10,8,"#101820");
+      px(bx+2,y-7,6,1,"#5ee08d"); px(bx+2,y-5,8,1,"#4a9ae0");
+      px(bx+2,y-3,5,1,"#e0c040"); px(bx+2,y-1,7,1,"#5ee08d");
+    }
+  }else if(pc==="design"){ // デザイナー: 白ベゼル大画面+ペンタブ
+    px(mx+4,y+1,6,2,"#c8cdd6"); px(mx+2,y+2,10,1,"#aab0bc");
+    obox(mx-2,y-12,19,13,"#dcdfe6");
+    px(mx-2,y-12,19,1,"#f0f2f6");
+    px(mx,y-10,15,9,"#2a2f3a");
+    px(mx+1,y-9,8,7,"#f6f6f2");                              // カンバス
+    px(mx+2,y-8,3,2,"#e06a8a"); px(mx+5,y-6,3,3,"#5ec4e0");  // 描きかけの絵
+    px(mx+10,y-9,4,2,"#e0564a"); px(mx+10,y-6,4,2,"#4a9ae0"); px(mx+10,y-3,4,2,"#50c070"); // パレット
+    px(x+3,y+5,8,4,"#9aa0ac"); px(x+4,y+6,6,2,"#3a3f4a"); px(x+12,y+4,1,4,"#e05a4a"); // ペンタブ+ペン
+  }else if(pc==="edit"){ // 動画編集: ワイドモニタ+タイムライン
+    px(mx+3,y+1,6,2,"#3a3f4a");
+    obox(mx-3,y-11,21,12,"#22262e");
+    px(mx-3,y-11,21,1,"#3a4050");
+    px(mx-2,y-9,19,9,"#14181e");
+    px(mx-1,y-8,7,4,"#3a5e7a"); px(mx,y-7,5,2,"#7ac4e8");    // プレビュー
+    px(mx-1,y-3,5,1,"#e09a3c"); px(mx+5,y-3,7,1,"#4a9ae0"); px(mx+13,y-3,4,1,"#50c070"); // タイムライン
+    px(mx-1,y-1,8,1,"#c05a8a"); px(mx+8,y-1,6,1,"#e0c040");
+  }else if(pc==="sns"){ // SNS: モニタ+スマホスタンド
+    px(mx+3,y+1,4,2,"#3a3f4a");
+    obox(mx-2,y-10,13,11,"#2a2f38");
+    px(mx-1,y-8,11,8,"#1c2a3a");
+    px(mx,y-7,9,2,"#e06a9a"); px(mx,y-4,6,1,"#7ac4e8"); px(mx,y-2,7,1,"#7ac4e8"); // SNSフィード
+    obox(x+w-8,y-6,6,9,"#26262e");                           // スマホ(スタンド)
+    px(x+w-7,y-5,4,6,"#58c4f0"); px(x+w-7,y-5,4,2,"#e08ab0");
+  }else if(pc==="trader"){ // ブレイン: トレーダー風3画面(横幅拡張)
+    const cx=x+w/2, tt=performance.now()/280;
+    // 広い天板の追加分(左右に張り出し)
+    px(x-14,y,14,11,"#c4bdad"); px(x-14,y,14,4,"#d2ccbd"); px(x+w,y,14,11,"#c4bdad"); px(x+w,y,14,4,"#d2ccbd");
+    px(x-14,y+11,14,9,"#9a927f"); px(x+w,y+11,14,9,"#9a927f");
+    dpx((x-14)*S,(y+11)*S,14*S,1,"#7f7865"); dpx((x+w)*S,(y+11)*S,14*S,1,"#7f7865");
+    dpx((x-14)*S,(y+19)*S,(w+28)*S,4,"rgba(0,0,0,.14)"); // 拡張分の落ち影
+    // 3画面(中央は少し高い)
+    const scr=(bx,by,chart)=>{
+      dpx((bx-1)*S,(by-1)*S,15*S,14*S,"rgba(90,160,255,.10)");
+      obox(bx,by,13,11,"#181c26"); px(bx,by,13,1,"#3a4a66");
+      px(bx+1,by+1,11,8,"#0c1220");
+      if(chart==="candles"){for(let k=0;k<5;k++){const up=(Math.floor(tt)+k)%2;px(bx+2+k*2,by+2+(up?0:3),1,4,up?"#4fe08d":"#e05a6a");}}
+      else if(chart==="line"){for(let k=0;k<10;k++)dpx((bx+2+k)*S,(by+3+Math.round(2+1.6*Math.sin(k/1.5+tt)))*S,1,2,"#4fca9a");}
+      else{for(let r=0;r<3;r++){px(bx+2,by+2+r*2,4,1,"#4a9ae0");px(bx+8,by+2+r*2,3,1,(Math.floor(tt)+r)%2?"#e0c040":"#4fe08d");}}
+      px(bx+4,by+1,4,1,"#26313f"); // スタンド首
+    };
+    scr(cx-21,y-9,"candles"); scr(cx-6,y-11,"line"); scr(cx+8,y-9,"table");
+    // キーボード+マウス(天板)
+    px(cx-8,y+6,16,3,"#3a3f4a"); for(let i=0;i<6;i++)dpx((cx-7+i*2)*S,(y+6)*S+1,2,2,"#7fd0f0");
+    px(x-9,y+4,4,3,"#e0c040"); // 左手にメモ/電卓
+  }else{ // 既定: ブラウン管
+    px(mx+5,y+1,4,2,"#3a3f4a"); px(mx+3,y+2,8,1,"#2b2f38"); // 首・台座
+    dpx((mx-2)*S,(y-12)*S,18*S,14*S,"rgba(90,255,150,.10)"); // 画面の外光
+    obox(mx,y-11,15,12,"#2a2f38");
+    px(mx,y-11,15,2,"#3f4552");                    // 上面ベベル(明)
+    dpx((mx+13)*S,(y-10)*S,2*S,11*S,"rgba(0,0,0,.38)"); // 右側面(暗)
+    px(mx+2,y-8,10,7,"#4fe08d"); px(mx+2,y-8,10,2,"#8ff0b8"); // 画面
+    for(let i=0;i<3;i++)dpx((mx+2)*S,(y-6+i*2)*S,10*S,1,"rgba(20,80,45,.35)"); // 走査線
+    px(mx+3,y-5,6,1,"#2fae67"); px(mx+3,y-3,4,1,"#2fae67");
+  }
+  // 高級チェア(ブレイン=ライブラ用): 背もたれ+ヘッドレスト+ゴールドのアームレスト
+  if(pc==="trader"){
+    const cx=x+w/2;
+    dpx((cx-9)*S,(y+45)*S,18*S,3,"rgba(0,0,0,.22)");
+    px(cx-9,y+23,18,22,PAL.O);                    // 背もたれ枠(ハイバック)
+    px(cx-8,y+24,16,20,"#1b1f28"); px(cx-8,y+24,16,2,"#333a48");
+    px(cx-6,y+21,12,4,"#232833"); px(cx-6,y+21,12,1,"#3a4252"); // ヘッドレスト
+    px(cx-10,y+31,2,11,"#c8a03a"); px(cx+8,y+31,2,11,"#c8a03a"); // ゴールドのアームレスト
+    dpx((cx-10)*S,(y+31)*S,2*S,2,"#e6c45c"); dpx((cx+8)*S,(y+31)*S,2*S,2,"#e6c45c");
+  }
+  // 椅子(背もたれに奥行き)
+  else if(hasChair){
+    const cx=x+w/2;
+    dpx((cx-6)*S,(y+31)*S,12*S,3,"rgba(0,0,0,.18)");
+    px(cx-6,y+26,12,7,PAL.O);
+    px(cx-5,y+27,10,5,"#2b2f38"); px(cx-5,y+27,10,2,"#3f4552");
+    px(cx-2,y+32,4,2,"#1a1d24");
+  }
+}
+function drawSofa(){
+  dpx(325*S,88*S,54*S,5,"rgba(0,0,0,.16)"); // 柔らか影
+  obox(330,62,42,9,"#a03844"); px(331,63,40,3,"#c04a58");
+  dpx(338*S,63*S,2,16,"rgba(0,0,0,.18)");dpx(352*S,63*S,2,16,"rgba(0,0,0,.18)");dpx(366*S,63*S,2,16,"rgba(0,0,0,.18)"); // 背もたれの縫い目
+  obox(327,64,5,22,"#a03844"); obox(370,64,5,22,"#a03844");
+  px(328,65,3,2,"#c04a58"); px(371,65,3,2,"#c04a58");
+  obox(332,80,38,8,"#c85562"); px(332,80,38,2,"#dd6a76");
+  dpx(351*S,80*S,2,8*S,"rgba(0,0,0,.15)"); // 座面の割れ目
+  px(332,88,38,3,"#7a2a33");                // 前面(座面下の高さ)
+  px(333,91,4,2,"#4a1a20"); px(365,91,4,2,"#4a1a20"); // 脚
+}
+function drawTable(){
+  dpx(337*S,113*S,26*S,4,"rgba(0,0,0,.16)");
+  obox(338,104,24,8,"#8a6a3f"); px(339,105,22,2,"#a5834f");
+  dpx(340*S,109*S,20*S,1,"rgba(60,35,10,.3)");
+  px(338,112,24,3,"#6e5228");                // 前面(天板下の高さ)
+  px(340,115,2,3,"#4c3818"); px(358,115,2,3,"#4c3818"); // 脚
+  px(344,105,5,3,"#f4f4f0");
+}
+function drawCushion(x,y){
+  dpx(x*S,(y+6)*S,13*S,3,"rgba(0,0,0,.18)");
+  obox(x,y,13,7,"#e0a83a"); px(x+1,y+1,11,2,"#f0c060");
+  dpx((x+6)*S,(y+2)*S,2,8,"rgba(140,90,20,.4)"); // ボタン絞り
+}
+
+// ---- キャラクター --------------------------------------------------------
+function drawWorker(w){
+  const f=Math.round(w.x),fy=Math.round(w.y);
+  const bob=w.state==="live"?Math.round(Math.sin(performance.now()/180+f)*.9):0;
+
+  if(w.state==="rest"&&w.spot&&w.spot.pose==="lie"){
+    ctx.fillStyle="rgba(0,0,0,.22)";ctx.fillRect((f-9)*S,(fy-3)*S,20*S,4*S);
+    ctx.save();ctx.translate(f*S,(fy-2)*S);ctx.rotate(-Math.PI/2);
+    ctx.drawImage(w.sprites["down_sit"],-12,-13);
+    ctx.restore();
+    nameTag(w,f,fy-14);
+    drawStatusIcon(w,f,fy-14);
+    return;
+  }
+  ctx.fillStyle="rgba(0,0,0,.22)";ctx.fillRect((f-5)*S,(fy-2)*S,10*S,3*S);
+
+  let leg="stand";
+  if(w.state==="desk"||w.state==="live"||(w.state==="rest"&&w.spot&&w.spot.pose==="sit"))leg="sit";
+  else if(w.state==="toBreak"||w.state==="toDesk")leg=w.frame?"walkA":"walkB";
+  const spr=w.sprites[w.dir+"_"+leg];
+  const top=fy-14+(leg==="sit"?2:0)+bob;
+  ctx.drawImage(spr,(f-5)*S,top*S);
+
+  if(w.state==="desk"||w.state==="live"){
+    px(f-6,fy-6,12,6,PAL.O);
+    px(f-5,fy-5,10,4,"#22242c"); px(f-5,fy-5,10,1,"#3a3d48");
+    px(f-2,fy,4,2,"#15161c");
+  }
+  if(w.state==="live"){ // タイピング演出: モニタにコードが流れてチカチカ光る
+    const d=w.desk, mx=d.x+DESK_W/2-7;
+    if(Math.random()<0.4)px(mx+2+Math.floor(Math.random()*7),d.y-8+Math.floor(Math.random()*6),3,1,"#c8ffe0");
+    if(Math.random()<0.15)px(mx+2,d.y-8,10,7,"rgba(220,255,235,.16)");
+  }
+  nameTag(w,f,top-2);
+  drawStatusIcon(w,f,top-2);
+}
+function nameTag(w,x,y){
+  const label=w.name.length>6?w.name.slice(0,5)+"…":w.name;
+  txt(label,x+0.5,y+0.5,12,"rgba(0,0,0,.6)","center");
+  txt(label,x,y,12,"#fff","center");
+}
+// 頭上ステータスアイコン(カイロ風): 作業中=メモ+ペン / 休憩中=コーヒー
+function drawStatusIcon(w,f,top){
+  if(w.bubble)return; // 吹き出し表示中は出さない
+  const t=performance.now()/400;
+  const bobI=Math.round(Math.sin(t+f*0.7));
+  const y=top-19+bobI; // 名前タグのさらに上に表示
+
+  if(w.state==="live"){
+    px(f-5,y,8,9,PAL.O);
+    px(f-4,y+1,6,7,"#ffffff");                       // メモ用紙
+    dpx((f-3)*S,(y+3)*S,4*S,1,"#9aa4b0"); dpx((f-3)*S,(y+5)*S,4*S,1,"#9aa4b0"); // 罫線
+    px(f+3,y+1,2,6,"#e8a33d"); px(f+3,y+6,2,2,"#4a3520"); // 鉛筆(軸+芯)
+    px(f+3,y,2,1,"#e05a6a");                          // 消しゴム
+  }else if(w.state==="rest"||(w.idle&&w.state!=="toBreak")){
+    px(f-4,y+3,7,6,PAL.O);
+    px(f-3,y+4,5,4,"#fff8ee");                        // マグカップ
+    px(f-3,y+4,5,1,"#7a4a28");                        // コーヒー
+    px(f+3,y+5,2,2,PAL.O); dpx((f+3)*S,(y+5)*S+1,2,2,"#fff8ee"); // 取っ手
+    if(Math.floor(t)%2===0){dpx((f-1)*S,y*S,2,2,"#e8e8e8");dpx(f*S,(y+1)*S+1,2,2,"#d8d8d8");} // 湯気
+  }
+}
+function bubbleBox(f,top,text,bg){
+  ctx.font="15px DotGothic16, monospace";
+  const twD=Math.ceil(ctx.measureText(text).width)+14;
+  const fD=f*S;
+  const bxD=Math.min(Math.max(fD-twD/2,4),W*S-twD-4), byD=Math.max(top*S-22,4);
+  dpx(bxD+2,byD+2,twD,24,"rgba(0,0,0,.25)");
+  dpx(bxD+2,byD,twD-4,24,bg); dpx(bxD,byD+2,twD,20,bg);
+  ctx.fillStyle=PAL.O;
+  dpx(bxD+2,byD-2,twD-4,2,PAL.O); dpx(bxD+2,byD+24,twD-4,2,PAL.O);
+  dpx(bxD-2,byD+2,2,20,PAL.O); dpx(bxD+twD,byD+2,2,20,PAL.O);
+  dpx(bxD,byD,2,2,PAL.O); dpx(bxD+twD-2,byD,2,2,PAL.O);
+  dpx(bxD,byD+22,2,2,PAL.O); dpx(bxD+twD-2,byD+22,2,2,PAL.O);
+  dpx(fD-2,byD+24,6,4,bg); dpx(fD,byD+28,2,2,bg);
+  dpx(fD-4,byD+26,2,2,PAL.O); dpx(fD+4,byD+26,2,2,PAL.O); dpx(fD-2,byD+30,6,2,PAL.O);
+  ctx.fillStyle="#222";ctx.textAlign="center";
+  ctx.fillText(text,bxD+twD/2,byD+17);
+}
+function drawBubble(w){
+  if(!w.bubble)return;
+  const top=(w.state==="rest"&&w.spot&&w.spot.pose==="lie")?w.y-16:w.y-30;
+  bubbleBox(Math.round(w.x),top,w.bubble,"#ffffff");
+}
+function drawTaskBubble(w,text){
+  const top=(w.state==="rest"&&w.spot&&w.spot.pose==="lie")?w.y-16:w.y-30;
+  bubbleBox(Math.round(w.x),top,text,"#fffbe6");
+}
+function drawUsage(){
+  // 稼働人数パネル(💰HUD・AI使用枠バーは削除済み)
+  const n=workers.filter(w=>w.state==="live").length;
+  px(2,2,62,14,PAL.O); px(3,3,60,12,"#2b3563"); px(3,3,60,2,"#46538e");
+  txt("稼働",6,12,12,actBridge?"#6fd06a":"#8a8f9e");
+  txt(n+"人",34,12,12,n>0?"#fff":"#8a8f9e");
+}
+
+// ---- ステータス表 --------------------------------------------------------
+const rows=document.getElementById("rows");
+function stateLabel(w){
+  if(w.manual&&w.manual.status==="done"&&w.state!=="live")return ["完了✓(1h以内)","st-work"];
+  if(w.idle)return w.state==="toBreak"?["移動中(待機)","st-idle"]:["待機中(休憩室)","st-idle"];
+  return {live:["作業中","st-work"],desk:["待機中(席)","st-idle"],
+          rest:["休息中(稼働なし12h+)","st-rest"],toBreak:["休憩室へ移動中","st-walk"],
+          toDesk:["席へ戻り中","st-walk"]}[w.state]||["待機中(席)","st-idle"];
+}
+function updateBoard(){
+  rows.innerHTML=workers.map(w=>{
+    const[l,c]=stateLabel(w);
+    const task=(w.manual&&w.manual.task)?w.manual.task:w.task;
+    return `<tr><td class="grp">${w.room}</td><td>${w.name}</td><td>${w.role}</td><td>${task}</td><td><span class="st ${c}">${l}</span></td></tr>`;
+  }).join("");
+}
+
+// ---- メインループ --------------------------------------------------------
+// 1フレームの例外でrAFが止まらないよう、本体をtry/catchで包む
+let last=performance.now(),boardT=0;
+function loop(now){
+  try{frame(now);}catch(e){console.error("office loop error:",e);}
+  requestAnimationFrame(loop);
+}
+function frame(now){
+  const dt=Math.min((now-last)/1000,.05);last=now;
+  workers.forEach(w=>updateWorker(w,dt));
+
+  drawStatic();
+  const items=[];
+  workers.forEach(w=>items.push({y:w.desk.y+20,fn:()=>drawDesk(w.desk,w.idle,w.pc)}));
+  items.push({y:92,fn:drawSofa},{y:120,fn:drawTable},
+    {y:207,fn:()=>drawCushion(330,200)},{y:207,fn:()=>drawCushion(362,200)});
+  items.push({y:44,fn:()=>vending(328,6,"#4a8ad0")});
+  items.push({y:118,fn:()=>hWall(112)});
+  items.push({y:152,fn:()=>hWall(146)});
+  items.push({y:262,fn:()=>hWall(258)});
+  items.push({y:296,fn:()=>hWall(290)});
+  items.push({y:372,fn:()=>hWall(368)});
+  items.push({y:406,fn:()=>hWall(400)});
+  items.push({y:478,fn:()=>hWall(474)});
+  items.push({y:512,fn:()=>hWall(506)});
+  items.push({y:112,fn:()=>{vWallSeg(105,BASE_Y,112);vWallSeg(210,BASE_Y,112);vWallSeg(316,BASE_Y,112);}});
+  items.push({y:256,fn:()=>{vWallSeg(105,146,256);vWallSeg(210,146,256);vWallSeg(316,146,256);}});
+  items.push({y:368,fn:()=>{vWallSeg(105,290,368);vWallSeg(210,290,368);vWallSeg(316,290,368);}});
+  items.push({y:H,fn:()=>{vWallSeg(316,402,H-2);}}); // ブレイン/AI LABの右壁(連続)
+  workers.forEach(w=>items.push({y:w.y,fn:()=>drawWorker(w)}));
+  items.sort((a,b)=>a.y-b.y).forEach(i=>i.fn());
+
+  signPlate(53,13,"ROOM 01");
+  signPlate(158,13,"会議室");
+  signPlate(263,13,"ROOM 02");
+  signPlate(350,13,"休憩室");
+  signPlate(53,141,"ROOM 03");
+  signPlate(158,141,"ROOM 04");
+  signPlate(263,141,"ROOM 05");
+  signPlate(53,277,"ROOM 06");
+  signPlate(158,277,"ROOM 07");
+  signPlate(263,277,"ROOM 08");
+  signPlate(158,389,"LAB 01");
+  signPlate(158,495,"LAB 02");
+
+  if(hoverHold>0){hoverHold-=dt;if(hoverHold<=0)hoverW=null;}
+  workers.forEach(w=>{if(w!==hoverW)drawBubble(w);});
+  drawUsage();
+  if(hoverW)drawTaskBubble(hoverW,hoverText(hoverW));
+
+  boardT+=dt;
+  if(boardT>.4){updateBoard();boardT=0;}
+}
+updateBoard();
+requestAnimationFrame(loop);
+// タブ非表示中はrAFが止まるため、状態表はintervalでも維持する
+setInterval(()=>{
+  for(const w of workers)
+    if(w.state==="live"&&!isLive(w)){w.state="desk";w.timer=workDur(w);}
+  updateBoard();
+},2000);
+
+// ============================================================
+// 経営司令室(下半分ダッシュボード)
+// データ層: company_dashboard.json(Orchestrator書込用) + 実ファイル(JOHN_TASKBOARD/VENTURE_RANKING/日報/更新ログ)
+// 取得できない値は「未接続/集計待ち」を表示し、架空の数字は出さない
+// ============================================================
+const DASH={db:null,rank:[],lab:null,tb:null,evo:"",errs:[]};
+const KB_DIR="AIチーム_ナレッジ";
+function encPath(p){return p.split("/").map(encodeURIComponent).join("/");}
+async function ccFetch(p){const r=await fetch(encPath(p)+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw new Error(p);return r.text();}
+function ccEsc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+async function loadDash(){
+  DASH.errs=[];
+  try{DASH.db=JSON.parse(await ccFetch("company_dashboard.json"));}
+  catch(e){DASH.db=null;DASH.errs.push("dashboard.json未接続");}
+  try{ // VENTUREランキング
+    const t=await ccFetch(KB_DIR+"/ai_lab/VENTURE_RANKING.md");
+    DASH.rank=[...t.matchAll(/^\|\s*(\d+)\s*\|\s*(VENTURE-[^|\s]+)\s*\|([^|]*)\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|/gm)]
+      .map(m=>({no:+m[1],id:m[2],name:m[3].trim(),score:+m[4],state:m[5].trim(),diff:m[6].trim()}));
+  }catch(e){DASH.rank=null;}
+  try{ // ジョンの采配盤
+    const t=await ccFetch(KB_DIR+"/JOHN_TASKBOARD.md");
+    const sec=h=>{const m=t.split(/^## /m).find(s=>s.startsWith(h));
+      return m?m.split("\n").filter(l=>/^- /.test(l)).map(l=>l.replace(/^- /,"")).filter(l=>!/^\(な(し|ん)?\)|^\(なし\)/.test(l.trim())&&l.trim()!=="(なし)"):[];};
+    DASH.tb={p01:sec("P0"),p23:sec("P2"),p45:sec("P4"),blockers:sec("ブロッカー")};
+  }catch(e){DASH.tb=null;}
+  try{ // 本日のLAB日報(あれば)
+    const dir=await ccFetch(KB_DIR+"/ai_lab/DAILY_LAB_REPORT/");
+    const files=[...dir.matchAll(/href="([0-9]{4}-[0-9]{2}-[0-9]{2})\.md"/g)].map(m=>m[1]).sort();
+    if(files.length){
+      const rep=await ccFetch(KB_DIR+"/ai_lab/DAILY_LAB_REPORT/"+files[files.length-1]+".md");
+      const num=re=>{const m=rep.match(re);return m?+m[1]:null;};
+      DASH.lab={date:files[files.length-1],
+        found:num(/機会[^\d]{0,10}(\d+)\s*件/), created:num(/事業案[^\d]{0,10}(\d+)\s*件/),
+        passed:num(/審査通過[^\d]{0,10}(\d+)/), running:num(/実験中[^\d]{0,10}(\d+)/)};
+    }else DASH.lab=null;
+  }catch(e){DASH.lab=null;}
+  try{ // 進化の一文(更新ログの最新)
+    const t=await ccFetch(KB_DIR+"/_更新ログ.md");
+    const rows=t.trim().split("\n").filter(l=>/^\d{4}-\d{2}-\d{2} \|/.test(l));
+    DASH.evo=(DASH.db&&DASH.db.evolution)||(rows.length?rows[rows.length-1].split("|")[2]||"":"");
+  }catch(e){if(DASH.db&&DASH.db.evolution)DASH.evo=DASH.db.evolution;}
+  renderDash();
+}
+
+function ccMoney(v){return v==null?'<span class="v na">未接続</span>':'<span class="v">¥'+Number(v).toLocaleString()+'</span>';}
+function renderDash(){
+  const db=DASH.db||{};
+  // ① TODAY'S COMMAND
+  {
+    const el=document.getElementById("cc_command");let h="";
+    for(const k of (db.kenta_direct||[]))h+='<div class="cckenta">🔴 オーナー指示: '+ccEsc(k)+'</div>';
+    h+='<div class="ccobj"><span class="lbl">TODAY\'S PRIMARY OBJECTIVE</span>'+ccEsc(db.objective||"(未設定 — JOHN_TASKBOARDに従い自律運転)")+'</div>';
+    const tasks=DASH.tb?[...DASH.tb.p01,...DASH.tb.p23].slice(0,5):[];
+    if(tasks.length){
+      tasks.forEach((t,i)=>{
+        const pm=t.match(/進捗[:：]?\s*(\d+)%/);
+        const who=(t.match(/\(([^)]+)\)[:：]?/)||[])[1]||"";
+        h+='<div class="cctask"><span class="no">0'+(i+1)+'</span><span class="tx">'+ccEsc(t.replace(/進捗[:：]?\s*\d+%/,""))+'</span>'
+          +(who?'<span class="who">'+ccEsc(who)+'</span>':"")
+          +(pm?'<span class="ccbar"><i style="width:'+pm[1]+'%"></i></span>':"")+'</div>';
+      });
+    }else h+='<div class="cctask"><span class="tx" style="color:#6b769c">采配盤(JOHN_TASKBOARD.md)未接続</span></div>';
+    const ap=db.approvals||{};
+    h+='<div class="ccappr"><b>'+(ap.pending??"—")+'</b>承認待ち'+(ap.estimated_review_time?'　想定確認時間 '+ccEsc(ap.estimated_review_time):"")+'</div>';
+    el.innerHTML=h;
+  }
+  // ② 24H MONEY ENGINE
+  {
+    const el=document.getElementById("cc_money");
+    const rv=db.revenue||{},ac=db.ai_cost||{},me=db.money_engine||{};
+    let h='<div class="ccmoneygrid">'
+      +'<div class="ccmoney hero"><div class="k">TODAY REVENUE</div>'+ccMoney(rv.today)+'</div>'
+      +'<div class="ccmoney hero"><div class="k">MONTH REVENUE</div>'+ccMoney(rv.month)+'</div>'
+      +'<div class="ccmoney hero"><div class="k">REALIZED PROFIT</div>'+ccMoney(rv.realized_profit)+'</div>'
+      +'<div class="ccmoney"><div class="k">AI COST</div>'+ccMoney(ac.today)+'</div>'
+      +'<div class="ccmoney"><div class="k">AI BUDGET LEFT</div>'+ccMoney(ac.budget_remaining)+'</div>'
+      +'<div class="ccmoney"><div class="k">AI ROI</div>'+(ac.roi==null?'<span class="v na">集計待ち</span>':'<span class="v">'+ccEsc(ac.roi)+'x</span>')+'</div>'
+      +'</div>';
+    const g=(k,v)=>k+' <b>'+(v==null?"—":v)+'</b>';
+    h+='<div class="ccminirow">'
+      +'<span>'+g("機会",me.opportunities)+'</span><span>'+g("実験中",me.experiments)+'</span>'
+      +'<span>'+g("SCALE候補",me.scale_candidates)+'</span><span>'+g("収益発生",me.revenue_generating)+'</span>'
+      +'<span class="ccmode">BUDGET MODE <b>'+ccEsc(ac.mode||"NORMAL")+'</b></span></div>';
+    el.innerHTML=h;
+  }
+  // ③ AI LAB LIVE
+  {
+    const el=document.getElementById("cc_lab");let h="";
+    const L=DASH.lab;
+    h+='<div class="cclabstats">'
+      +'<span>TODAY機会 <b>'+(L&&L.found!=null?L.found:"—")+'</b></span>'
+      +'<span>事業案 <b>'+(L&&L.created!=null?L.created:"—")+'</b></span>'
+      +'<span>審査通過 <b>'+(L&&L.passed!=null?L.passed:"—")+'</b></span>'
+      +'<span>実験中 <b>'+(L&&L.running!=null?L.running:"—")+'</b></span>'
+      +(L?'':'<span style="color:#6b769c">初回自動運転待ち(毎朝7:08)</span>')+'</div>';
+    if(DASH.rank===null)h+='<div class="ccventure"><span style="color:#6b769c">VENTURE_RANKING.md 未接続</span></div>';
+    else if(!DASH.rank.length)h+='<div class="ccventure"><span style="color:#6b769c">候補なし — 初回のLAB自動運転で生成されます</span></div>';
+    else DASH.rank.slice(0,3).forEach(v=>{
+      h+='<div class="ccventure"><div class="top"><span class="rank">#'+v.no+'</span><span class="nm">'+ccEsc(v.name||v.id)+'</span><span class="sc">'+v.score+'</span></div>'
+        +'<div class="meta"><span class="ccphase">'+ccEsc(v.state||"—")+'</span>'+ccEsc(v.id)+(v.diff?"　"+ccEsc(v.diff):"")+'</div></div>';
+    });
+    el.innerHTML=h;
+  }
+  // ④ COMPANY PULSE
+  {
+    const el=document.getElementById("cc_pulse");
+    const cnt=s=>workers.filter(w=>w.state===s).length;
+    const working=cnt("live"),waiting=cnt("desk"),resting=workers.filter(w=>w.state==="rest").length,
+      moving=cnt("toBreak")+cnt("toDesk"),
+      doneToday=workers.filter(w=>w.manual&&w.manual.status==="done").length;
+    const blocked=DASH.tb?DASH.tb.blockers.length:0;
+    const appr=(db.approvals&&db.approvals.pending)??0;
+    const sh=db.system_health||{};
+    const errs=[...(sh.errors||[]),...DASH.errs.filter(e=>e!=="dashboard.json未接続")];
+    let h="";
+    if(errs.length||blocked>0)h+='<div class="cchealth bad">⚠ ATTENTION REQUIRED — '+(blocked?blocked+' BLOCKED ':'')+(errs.length?errs.length+' ERROR':'')+'</div>';
+    else h+='<div class="cchealth ok">✓ ALL SYSTEMS NORMAL</div>';
+    h+='<div class="ccpulsegrid">'
+      +'<div class="ccpulse ok"><div class="k">WORKING</div><div class="v">'+working+'</div></div>'
+      +'<div class="ccpulse"><div class="k">WAITING</div><div class="v">'+waiting+'</div></div>'
+      +'<div class="ccpulse"><div class="k">RESTING</div><div class="v">'+(resting+moving)+'</div></div>'
+      +'<div class="ccpulse '+(blocked?"bad":"")+'"><div class="k">BLOCKED</div><div class="v">'+blocked+'</div></div>'
+      +'<div class="ccpulse '+(appr?"warn":"")+'"><div class="k">APPROVAL</div><div class="v">'+appr+'</div></div>'
+      +'<div class="ccpulse ok"><div class="k">DONE(直近)</div><div class="v">'+doneToday+'</div></div>'
+      +'</div>';
+    if(DASH.tb&&DASH.tb.blockers.length)h+=DASH.tb.blockers.slice(0,3).map(b=>'<div class="ccblock">⛔ '+ccEsc(b)+'</div>').join("");
+    if(DASH.evo)h+='<div class="ccevo"><span class="lbl">TODAY\'S EVOLUTION</span>'+ccEsc(DASH.evo)+'</div>';
+    el.innerHTML=h;
+  }
+}
+// 運転状態バー(1秒ごと)
+function ccClock(){
+  const now=new Date();
+  document.getElementById("cc_last").textContent=now.toTimeString().slice(0,8);
+  const cyc=(DASH.db&&DASH.db.cycles)||[{name:"LAB 02",time:"07:08"},{name:"YouTube",time:"08:39"},{name:"JOHN LOOP",time:"18:38"}];
+  let best=null;
+  for(const c of cyc){
+    const[hh,mm]=c.time.split(":").map(Number);
+    const t=new Date(now);t.setHours(hh,mm,0,0);
+    if(t<=now)t.setDate(t.getDate()+1);
+    if(!best||t<best.t)best={t,name:c.name};
+  }
+  if(best){
+    const s=Math.floor((best.t-now)/1000);
+    const hh=String(Math.floor(s/3600)).padStart(2,"0"),mm=String(Math.floor(s%3600/60)).padStart(2,"0"),ss=String(s%60).padStart(2,"0");
+    document.getElementById("cc_next").textContent=best.name+" "+hh+":"+mm+":"+ss;
+  }
+}
+loadDash();
+setInterval(loadDash,30000);
+setInterval(ccClock,1000);
+ccClock();
+</script>
+</body>
+</html>
