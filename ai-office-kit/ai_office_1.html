@@ -264,6 +264,11 @@ const SPOTS=[
   {x:336,y:206,pose:"sit",  dir:"right",taken:false},
   {x:368,y:206,pose:"sit",  dir:"left", taken:false},
   {x:336,y:52, pose:"stand",dir:"up",   taken:false},
+  // 待機中メンバーが休憩室に集まるため増設(全員待機でも入りきる余裕を持たせる)
+  {x:352,y:52, pose:"stand",dir:"up",   taken:false},
+  {x:368,y:52, pose:"stand",dir:"up",   taken:false},
+  {x:340,y:140,pose:"stand",dir:"right",taken:false},
+  {x:364,y:140,pose:"stand",dir:"left", taken:false},
 ];
 const WORK_BUBBLES=["なるほど！","できた！","ふむふむ","むむ…","ヨシ！","要確認"];
 const REST_BUBBLES=["Zzz…","ふぅ〜","☕"];
@@ -538,7 +543,11 @@ async function pollState(){
     const st=await r.json();
     stateLog=Array.isArray(st.log)?st.log.slice(-4):[];
     const now=performance.now();
-    for(const w of workers)w.manual=null;
+    const waiting=st.waiting||{};   // orchestratorが算出した待機理由({名前:"〇〇待ち"})
+    for(const w of workers){
+      w.manual=null;
+      w.waitingReason=(!w.idle&&typeof waiting[w.name]==="string")?waiting[w.name]:null;
+    }
     for(const o of (st.overrides||[])){
       const w=workers.find(x=>x.name===o.name);
       if(!w)continue;
@@ -619,17 +628,32 @@ function hoverText(w){
   if(w.manual&&w.manual.status==="done"&&w.state!=="live")return "完了："+w.manual.task;
   if(w.manual&&w.manual.status==="working")return "作業中(チャット指示)："+w.manual.task;
   if(w.idle)return w.task;
+  const wait=w.waitingReason?"待機中・"+w.waitingReason:"待機中";
   if(w.state==="live")return "作業中："+w.task;
-  if(w.state==="desk")return "待機中(担当："+w.task+")";
-  if(w.state==="rest")return "休息中・12h以上稼働なし(担当："+w.task+")";
+  if(w.state==="desk")return wait+"(担当："+w.task+")";
+  if(w.state==="rest")return isStale(w)?"休息中・12h以上稼働なし(担当："+w.task+")"
+                                        :wait+"・休憩室(担当："+w.task+")";
   if(w.state==="toBreak")return "休憩室へ移動中";
   return "席へ戻り中";
 }
 
+// ---- 状態ライフサイクル(明示定義) ----------------------------------------
+// 【作業中(live)になる条件】次のいずれかを満たした瞬間:
+//   A. office_state.json の overrides に status:"working" が載る
+//      (采配=orchestrator / 社長指示バー。until を過ぎると自動で解除)
+//   B. activityブリッジが実稼働ログを検知(pollActivity → liveUntil を延長)
+// 【待機中】上記が無い状態。完了✓表示(DONE_SHOW_MS=1h)が終わるか、最後の稼働から
+//   IDLE_TO_BREAK_MS 経過すると休憩室へ歩いて移動し「待機中(休憩室)」になる。
+//   「次の一歩の条件(〇〇待ち)」は office_state.json の waiting マップ
+//   (orchestrator.compute_waiting が毎サイクル算出)から表示する。
+// 【休息中】稼働なしが STALE_MS(12h) を超えた深い待機。表示だけ区別する。
+// 【復帰】作業が割り当てられ live 条件を満たすと、席へ歩いて戻り「作業中」へ。
 function isLive(w){return w.liveUntil&&performance.now()<w.liveUntil;}
-// 状態ライフサイクル: 作業完了→1hは完了✓ / 1〜12hは待機中(席) / 12h超は休憩室で休息
-const STALE_MS=12*3600e3;
+const STALE_MS=12*3600e3;        // これを超える無稼働は「休息中」表示
+const IDLE_TO_BREAK_MS=60e3;     // 待機がこの時間続いたら休憩室へ移動
 function isStale(w){return !w.idle&&Date.now()-(w.lastActWall||0)>STALE_MS;}
+function justDone(w){return !!(w.manual&&w.manual.status==="done");} // 完了✓(1h以内)は席で表示
+function shouldBreak(w){return !w.idle&&!isLive(w)&&!justDone(w)&&Date.now()-(w.lastActWall||0)>IDLE_TO_BREAK_MS;}
 function updateWorker(w,dt){
   if(w.bubble){w.bubbleT-=dt;if(w.bubbleT<=0)w.bubble=null;}
   else{
@@ -638,22 +662,22 @@ function updateWorker(w,dt){
       const pool=w.idle?IDLE_BUBBLES:
         (w.state==="live"?WORK_BUBBLES:
          w.state==="desk"?DESK_BUBBLES:
-         w.state==="rest"?REST_BUBBLES:null);
+         w.state==="rest"?(isStale(w)?REST_BUBBLES:IDLE_BUBBLES):null); // 待機はZzzではなく再開待ちの顔
       if(pool)w.bubble=pool[Math.floor(Math.random()*pool.length)];
       if(w.bubble)w.bubbleT=1.6;
       w.nextBubble=4+Math.random()*7;
     }
   }
-  if(w.state==="desk"){          // 席で待機(稼働なし12h以内)
+  if(w.state==="desk"){          // 席にいる(作業中への遷移待ち/完了✓表示中)
     w.dir="up";
     if(isLive(w)){w.state="live";w.lastActWall=Date.now();return;}
-    if(isStale(w)){              // 12時間稼働がない→休憩室で休息
+    if(shouldBreak(w)){          // 待機が続く→休憩室へ移動(待機は休憩室で)
       w.restRetry=(w.restRetry??0)-dt;
       if(w.restRetry<=0){
         const s=freeSpot();
         if(s){s.taken=true;w.spot=s;w.state="toBreak";
           w.path=makePathToBreak(w,{x:w.x,y:w.y},s);
-          w.bubble="休息します";w.bubbleT=1.4;}
+          w.bubble="待機します";w.bubbleT=1.4;}
         else w.restRetry=15;     // 休憩スペースが空くまで席で待つ
       }
     }
@@ -691,8 +715,8 @@ function updateWorker(w,dt){
         }else w.timer=8;
       }
     }else{
-      const called=isLive(w);          // 稼働検知→即座に席へ
-      if(called||!isStale(w)){         // 新しい作業記録が付いたら席へ戻る
+      const called=isLive(w);          // 作業割り当て(采配/指示/稼働検知)→席へ戻る
+      if(called||justDone(w)){         // 完了報告が付いた場合も席で完了✓を見せる
         w.spot.taken=false;const from={x:w.x,y:w.y};w.spot=null;
         w.state="toDesk";w.path=makePathBack(w,from);
         if(called){w.bubble="お仕事だ！";w.bubbleT=1.4;}
@@ -1203,9 +1227,12 @@ const rows=document.getElementById("rows");
 function stateLabel(w){
   if(w.manual&&w.manual.status==="done"&&w.state!=="live")return ["完了✓(1h以内)","st-work"];
   if(w.idle)return w.state==="toBreak"?["移動中(待機)","st-idle"]:["待機中(休憩室)","st-idle"];
-  return {live:["作業中","st-work"],desk:["待機中(席)","st-idle"],
-          rest:["休息中(稼働なし12h+)","st-rest"],toBreak:["休憩室へ移動中","st-walk"],
-          toDesk:["席へ戻り中","st-walk"]}[w.state]||["待機中(席)","st-idle"];
+  const wait=w.waitingReason?"待機中("+w.waitingReason+")":null;   // 例: 待機中(社長指示待ち)
+  if(w.state==="rest")return isStale(w)?["休息中(稼働なし12h+)","st-rest"]
+                                        :[wait||"待機中(休憩室)","st-idle"];
+  return {live:["作業中","st-work"],desk:[wait||"待機中(席)","st-idle"],
+          toBreak:["休憩室へ移動中","st-walk"],
+          toDesk:["席へ戻り中","st-walk"]}[w.state]||[wait||"待機中(席)","st-idle"];
 }
 function updateBoard(){
   rows.innerHTML=workers.map(w=>{
