@@ -33,9 +33,13 @@ REPO = os.path.dirname(BASE)
 OFFICE = os.path.join(REPO, "ai-office-kit")
 STATE = os.path.join(OFFICE, "office_state.json")
 TASKBOARD = os.path.join(OFFICE, "AIチーム_ナレッジ", "JOHN_TASKBOARD.md")
+BACKLOG_FILE = os.path.join(OFFICE, "AIチーム_ナレッジ", "ロール別バックログ.md")
 HTML = os.path.join(OFFICE, "ai_office_1.html")
 LOG_MAX = 40
 JST = ZoneInfo("Asia/Tokyo")
+# 稼働保証: 待機(休憩室)は1日累計でこの分数まで。超えたらジンが
+# 先行準備・定常業務タスクを自動采配して「作業中」に戻す(長期待機=ニート状態の禁止)。
+IDLE_LIMIT_MIN = 240
 
 
 def team_names():
@@ -154,14 +158,127 @@ def rule_based_decide(names, st, taskboard, now):
     return {"assignments": assignments, "log_lines": [], "escalations": []}
 
 
+def update_idle_clock(st, names, now):
+    """待機時間の日次累計(idle_clock)を更新する。
+    前サイクルからの経過分を working でないメンバーに加算。日付が変わればリセット。
+    初回のみ、各メンバーの直近の活動時刻(overrides の at)から待機分を推定シードする
+    (再起動直後でも長期待機者がすぐ稼働保証の対象になるように)。"""
+    today = now.strftime("%Y-%m-%d")
+    clock = st.get("idle_clock")
+    if not clock or clock.get("date") != today:
+        seeded = {}
+        if not clock:
+            busy = busy_names(st, now)
+            for o in st.get("overrides", []):
+                at = parse_iso(o.get("at"))
+                if o.get("name") in names and o["name"] not in busy and at:
+                    m = (now - at).total_seconds() / 60
+                    seeded[o["name"]] = round(min(max(m, 0), IDLE_LIMIT_MIN))
+        clock = {"date": today, "minutes": seeded,
+                 "last_at": now.isoformat(timespec="seconds")}
+        st["idle_clock"] = clock
+        return clock["minutes"]
+    last = parse_iso(clock.get("last_at")) or now
+    elapsed = max(0.0, min((now - last).total_seconds() / 60, 180.0))
+    busy = busy_names(st, now)
+    mins = clock.setdefault("minutes", {})
+    for n in names:
+        if n in busy:
+            continue
+        e = elapsed
+        o = next((x for x in st.get("overrides", []) if x.get("name") == n), None)
+        if o:
+            at = parse_iso(o.get("at"))
+            if at and at > last:   # サイクル間まで働いていた分は完了時刻から数える
+                e = min(e, max(0.0, (now - at).total_seconds() / 60))
+        mins[n] = round(mins.get(n, 0) + e)
+    clock["last_at"] = now.isoformat(timespec="seconds")
+    return mins
+
+
+def load_backlog():
+    """ロール別バックログ.md を読み込む。{名前: [タスク, ...]}。
+    `## 名前` セクションに `- タスク` を列挙する書式。`_default` は共通プール。"""
+    pools, cur = {}, None
+    try:
+        with open(BACKLOG_FILE, encoding="utf-8") as f:
+            for line in f:
+                line = line.rstrip()
+                if line.startswith("## "):
+                    cur = line[3:].strip()
+                    pools[cur] = []
+                elif cur and line.startswith("- "):
+                    pools[cur].append(line[2:].strip())
+    except OSError:
+        pass
+    return {k: v for k, v in pools.items() if v}
+
+
+def pick_activity_task(st, items, backlog, name):
+    """稼働保証タスクの選定。優先順:
+    ① 本人のバックログ(ローテーション) ② 将来タスク(P4-P5)の先行準備を自動創出
+    ③ 共通バックログ(_default) ④ 汎用の自主研究。"""
+    cursor = st.setdefault("backlog_cursor", {})
+    pool = backlog.get(name)
+    if pool:
+        i = cursor.get(name, 0)
+        cursor[name] = i + 1
+        return f"【定常業務】{pool[i % len(pool)]}"
+    future = [x for x in items if x["who"] == name and x["section"].startswith("P4")]
+    if future:
+        base = re.split(r"[—(（]", future[0]["task"])[0].strip() or future[0]["task"]
+        return f"【先行準備】{base}に向けた事前調査・準備ドキュメントの作成"
+    pool = backlog.get("_default")
+    if pool:
+        i = cursor.get(name, 0)
+        cursor[name] = i + 1
+        return f"【定常業務】{pool[i % len(pool)]}"
+    return "【自主研究】担当領域の最新動向リサーチとナレッジMDの更新"
+
+
+def ensure_min_activity(st, taskboard, names, now):
+    """長期待機の完全禁止(稼働保証)。待機の日次累計が IDLE_LIMIT_MIN(4時間)に達した
+    メンバーへ、先行準備・定常業務タスクを自動生成して4時間の「作業中」にする。
+    これにより全員が毎日、少なくとも半日は知的生産活動を行う状態を保証する。
+    通常采配(P0〜P3)が先に走るので、実タスクがある人はそちらが優先される。"""
+    mins = st.get("idle_clock", {}).get("minutes", {})
+    busy = busy_names(st, now)
+    items = parse_taskboard(taskboard)
+    backlog = load_backlog()
+    hm = now.strftime("%H:%M")
+    assigned = []
+    for name in names:
+        if name in busy or mins.get(name, 0) < IDLE_LIMIT_MIN:
+            continue
+        task = pick_activity_task(st, items, backlog, name)
+        st["overrides"] = [o for o in st.get("overrides", []) if o.get("name") != name]
+        st["overrides"].append({
+            "name": name, "status": "working", "task": task,
+            "at": now.isoformat(timespec="seconds"),
+            "until": (now + timedelta(hours=4)).isoformat(timespec="seconds"),
+        })
+        st.setdefault("log", []).append(
+            f"{hm} ジン: {name}へ稼働保証タスク『{task}』(待機が1日の上限4hに到達)")
+        assigned.append(f"{name}: {task}")
+    return assigned
+
+
+def _fmt_min(m):
+    h, mm = int(m) // 60, int(m) % 60
+    return (f"{h}時間{mm}分" if mm else f"{h}時間") if h else f"{mm}分"
+
+
 def compute_waiting(st, taskboard, names, now):
     """手空き(working でない)メンバーの「次の一歩を踏み出す条件」を算出し、
     office_state.json の waiting マップ({名前: 理由})として書き出す。
     オフィス画面はこれを「待機中(〇〇待ち)」として状態欄に表示する。
     判定順: 依存タスク未完了 → 実行中タスクあり(再采配待ち) → P4-P5の時期・条件
-    → 何も持っていなければ社長指示待ち。"""
+    → 何も持っていなければ社長指示待ち。
+    どの理由でも、稼働保証(1日の待機上限4h)までの残り時間を「あと〇〇で自動稼働」
+    として併記する — 長期待機(「9月まで待機」等)のまま放置される表示は存在しない。"""
     busy = busy_names(st, now)
     items = parse_taskboard(taskboard)
+    mins = st.get("idle_clock", {}).get("minutes", {})
     waiting = {}
     for name in names:
         if name in busy:
@@ -181,7 +298,7 @@ def compute_waiting(st, taskboard, names, now):
                 if "補助金" in t:
                     reason = "補助金採択待ち"
                 elif "9月" in t:
-                    reason = "9月まで待機"
+                    reason = "9月本番待ち"
                 elif "毎朝" in t:
                     reason = "毎朝7時の定期作業待ち"
                 elif "毎週土曜" in t or "週次" in t:
@@ -189,7 +306,10 @@ def compute_waiting(st, taskboard, names, now):
                 else:
                     reason = "時期・条件待ち"
                 break
-        waiting[name] = reason or "社長指示待ち"
+        base = reason or "社長指示待ち"
+        rem = max(0, IDLE_LIMIT_MIN - mins.get(name, 0))
+        suffix = f"あと{_fmt_min(rem)}で自動稼働" if rem else "まもなく自動稼働"
+        waiting[name] = f"{base}・{suffix}"
     st["waiting"] = waiting
     return waiting
 
@@ -295,8 +415,9 @@ def main():
         print(json.dumps({"fatal": repr(e)}, ensure_ascii=False))
         return 1
 
-    # 1. 満了整理 + 日次ナレッジ更新(ライブラ・毎朝7時以降の初回)
+    # 1. 満了整理 + 待機時間の日次累計 + 日次ナレッジ更新(ライブラ・毎朝7時以降の初回)
     summary["expired"] = expire_finished(st, now)
+    summary["idle_minutes"] = update_idle_clock(st, names, now)
     summary["daily_digest"] = daily_knowledge_update(st, taskboard, now)
 
     # 2. 采配(Claude → ルールベースの順)
@@ -308,7 +429,10 @@ def main():
     summary["assigned"] = apply_decision(st, decision, names, now, source)
     summary["decision_source"] = source
 
-    # 2.5 待機理由の算出(手空きメンバーの「〇〇待ち」をオフィス画面へ)
+    # 2.5 稼働保証: 待機が1日の上限(4h)に達したメンバーへ先行準備・定常業務を采配
+    summary["min_activity"] = ensure_min_activity(st, taskboard, names, now)
+
+    # 2.6 待機理由の算出(手空きメンバーの「〇〇待ち・あと〇〇で自動稼働」を画面へ)
     summary["waiting"] = compute_waiting(st, taskboard, names, now)
 
     # 3. 送信キュー
