@@ -51,7 +51,10 @@ GitHub Actions cron(毎時) ──▶ orchestrator.py の1サイクル
 手動実行は Actions タブ → office-autorun → Run workflow。
 
 1サイクルの内容(orchestrator.py):
-1. 作業時間が満了した working エントリを完了扱いに整理
+1. 作業時間が満了した working エントリを完了扱いに整理し、采配盤の進捗を+25%自動加算
+   (100%到達=完了)。**エージェント間連携**: 依存(依存:名前)の上流が完了した瞬間の
+   バトンパスと、応援(応援:名前)の自動発行を処理し、collaborations に連携を記録
+   (オフィス画面に連携ライン・パケット・対話吹き出しが出る)
 2. **采配**: `ANTHROPIC_API_KEY` があれば Claude(claude-opus-4-8)が采配盤と稼働状態から
    次の割り当てを判断(brain.py・構造化出力)。なければルールベース
    (采配盤のP0〜P3から未完了タスクを手空きの担当に割り当て)。
