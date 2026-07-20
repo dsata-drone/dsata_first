@@ -113,12 +113,15 @@ def parse_taskboard(taskboard):
         who, body = m.group(1).strip(), m.group(2).strip()
         prog = re.search(r"進捗[:：]?\s*(\d+)%", body)
         dep = re.search(r"依存[:：]\s*([^\s]+)", body)
+        help_m = re.search(r"応援[:：]\s*([^\s]+)", body)
         task = re.sub(r"\s*依存[:：]\s*[^\s]+", "", body)
+        task = re.sub(r"\s*応援[:：]\s*[^\s]+", "", task)
         task = re.sub(r"\s*進捗[:：]?\s*\d+%", "", task).strip()
         items.append({
             "section": section, "who": who, "task": task,
             "prog": int(prog.group(1)) if prog else None,
             "dep": dep.group(1) if dep else None,
+            "help": help_m.group(1) if help_m else None,
         })
     return items
 
@@ -156,6 +159,150 @@ def rule_based_decide(names, st, taskboard, now):
         seen.add(who)
         assignments.append({"name": who, "task": f"{it['task']}(自動采配)", "hours": 2})
     return {"assignments": assignments, "log_lines": [], "escalations": []}
+
+
+PROGRESS_PER_BLOCK = 25  # 1作業ブロック(采配1回=最大4h)の完了ごとに進む進捗%
+
+
+def _strip_auto_suffix(task):
+    """overrides のタスク文から自動付与サフィックスを外し、采配盤の本文と比較可能にする。"""
+    t = re.sub(r"\(自動判定: 作業時間満了\)$", "", task or "")
+    t = re.sub(r"\(自動采配\)$", "", t)
+    t = re.sub(r"\([^()]*からの依頼\)$", "", t)
+    return t.strip()
+
+
+def bump_progress(taskboard, st, expired_names):
+    """満了した作業ブロック分、采配盤の該当タスクの進捗を自動で進める。
+    100%に達したタスクは「完了」となり、依存する次のメンバーへのバトンパス
+    (process_handoffs)の引き金になる。
+    返り値: (新しい采配盤テキスト, 変更有無, 100%に到達した[(名前,タスク)])"""
+    if not expired_names:
+        return taskboard, False, []
+    done_tasks = {}
+    for o in st.get("overrides", []):
+        if o.get("name") in expired_names and o.get("status") == "done":
+            done_tasks.setdefault(o["name"], set()).add(_strip_auto_suffix(o.get("task")))
+    changed, completed, out = False, [], []
+    for line in taskboard.splitlines():
+        new_line = line
+        m = TASK_RE.match(line)
+        pm = re.search(r"進捗[:：]?\s*(\d+)%", line)
+        if m and pm:
+            who = m.group(1).strip()
+            body = re.sub(r"\s*依存[:：]\s*[^\s]+", "", m.group(2))
+            body = re.sub(r"\s*応援[:：]\s*[^\s]+", "", body)
+            body = re.sub(r"\s*進捗[:：]?\s*\d+%", "", body).strip()
+            if who in done_tasks and body in done_tasks[who]:
+                new = min(100, int(pm.group(1)) + PROGRESS_PER_BLOCK)
+                if new != int(pm.group(1)):
+                    new_line = line[:pm.start(1)] + str(new) + line[pm.end(1):]
+                    changed = True
+                    if new >= 100:
+                        completed.append((who, body))
+        out.append(new_line)
+    return "\n".join(out) + "\n", changed, completed
+
+
+def expire_collabs(st, now):
+    """連携レコードの寿命管理。until を過ぎた active は completed にし、
+    完了から6時間経ったものは削除。最大12件までに保つ。"""
+    collabs = st.get("collaborations", [])
+    for c in collabs:
+        if c.get("status") == "active":
+            u = parse_iso(c.get("until", ""))
+            if u and u < now:
+                c["status"] = "completed"
+
+    def keep(c):
+        if c.get("status") != "completed":
+            return True
+        u = parse_iso(c.get("until") or c.get("timestamp") or "")
+        return bool(u and (now - u) < timedelta(hours=6))
+    st["collaborations"] = [c for c in collabs if keep(c)][-12:]
+
+
+def _add_collab(st, now, from_agent, to_agent, request_type, message, task, until):
+    st.setdefault("collaborations", []).append({
+        "from_agent": from_agent, "to_agent": to_agent,
+        "request_type": request_type, "status": "active",
+        "message": message, "task": task,
+        "timestamp": now.isoformat(timespec="seconds"), "until": until,
+    })
+
+
+def process_handoffs(st, taskboard, names, now):
+    """バトンパス(成果物の引き渡し)。依存関係(依存:名前)の上流タスクがすべて
+    完了(100%)した瞬間、上流メンバーから下流メンバーへ自動で仕事を引き渡す:
+    下流タスクを「作業中(〇〇からの依頼)」で起動し、collaborations に連携を記録。
+    人間の指示なしで仕事がリレーされる。"""
+    items = parse_taskboard(taskboard)
+    busy = busy_names(st, now)
+    collabs = st.get("collaborations", [])
+    hm = now.strftime("%H:%M")
+    handed = []
+    for it in items:
+        if not _is_active(it) or not _is_open(it) or not it["dep"]:
+            continue
+        who, dep = it["who"], it["dep"]
+        if who not in names or dep == who or who in busy:
+            continue
+        if dep_unmet(items, dep):
+            continue
+        if any(c.get("to_agent") == who and c.get("task") == it["task"]
+               and c.get("status") in ("pending", "active") for c in collabs):
+            continue
+        until = (now + timedelta(hours=2)).isoformat(timespec="seconds")
+        st["overrides"] = [o for o in st.get("overrides", []) if o.get("name") != who]
+        st["overrides"].append({
+            "name": who, "status": "working",
+            "task": f"{it['task']}({dep}からの依頼)",
+            "at": now.isoformat(timespec="seconds"), "until": until,
+        })
+        _add_collab(st, now, dep, who, "handoff",
+                    f"担当分が完了しました。「{it['task']}」をお願いします！",
+                    it["task"], until)
+        st.setdefault("log", []).append(f"{hm} {dep}: ✉ {who}へバトンパス『{it['task']}』")
+        st.setdefault("log", []).append(f"{hm} {who}: {dep}さんから依頼を受信、作業を開始します！")
+        busy.add(who)
+        handed.append(f"{dep}→{who}: {it['task']}")
+    return handed
+
+
+def process_help_requests(st, taskboard, names, now):
+    """ヘルプ・共同作業の要請。采配盤のタスクに `応援:名前` が付いていて、
+    担当者が現にそのタスクを作業中かつ応援者が手空きなら、応援者へ
+    手伝いサブタスクを発行して共同作業(help連携)にする。"""
+    items = parse_taskboard(taskboard)
+    busy = busy_names(st, now)
+    collabs = st.get("collaborations", [])
+    hm = now.strftime("%H:%M")
+    issued = []
+    working_tasks = {o["name"]: _strip_auto_suffix(o.get("task"))
+                     for o in st.get("overrides", []) if o.get("status") == "working"}
+    for it in items:
+        helper, owner = it.get("help"), it["who"]
+        if not helper or helper not in names or helper in busy or helper == owner:
+            continue
+        if working_tasks.get(owner) != it["task"]:
+            continue  # 担当者がそのタスクを作業中のときだけ応援を呼ぶ
+        if any(c.get("to_agent") == helper and c.get("status") in ("pending", "active")
+               for c in collabs):
+            continue
+        until = (now + timedelta(hours=2)).isoformat(timespec="seconds")
+        sub = f"【応援】{owner}の「{it['task']}」を支援({owner}からの依頼)"
+        st["overrides"] = [o for o in st.get("overrides", []) if o.get("name") != helper]
+        st["overrides"].append({
+            "name": helper, "status": "working", "task": sub,
+            "at": now.isoformat(timespec="seconds"), "until": until,
+        })
+        _add_collab(st, now, owner, helper, "help",
+                    f"「{it['task']}」の応援をお願いします！", it["task"], until)
+        st.setdefault("log", []).append(f"{hm} {owner}: 🤝 {helper}へ応援要請『{it['task']}』")
+        st.setdefault("log", []).append(f"{hm} {helper}: {owner}さんの応援に入ります！")
+        busy.add(helper)
+        issued.append(f"{owner}→{helper}: {it['task']}")
+    return issued
 
 
 def update_idle_clock(st, names, now):
@@ -415,10 +562,21 @@ def main():
         print(json.dumps({"fatal": repr(e)}, ensure_ascii=False))
         return 1
 
-    # 1. 満了整理 + 待機時間の日次累計 + 日次ナレッジ更新(ライブラ・毎朝7時以降の初回)
+    # 1. 満了整理 + 進捗の自動加算 + 連携レコード整理 + 待機累計 + 日次ナレッジ更新
     summary["expired"] = expire_finished(st, now)
+    taskboard, tb_changed, tb_completed = bump_progress(st=st, taskboard=taskboard,
+                                                        expired_names=summary["expired"])
+    summary["progress_completed"] = [f"{w}: {t}" for w, t in tb_completed]
+    if tb_changed and not dry_run:
+        with open(TASKBOARD, "w", encoding="utf-8") as f:
+            f.write(taskboard)
+    expire_collabs(st, now)
     summary["idle_minutes"] = update_idle_clock(st, names, now)
     summary["daily_digest"] = daily_knowledge_update(st, taskboard, now)
+
+    # 1.5 エージェント間連携: バトンパス(依存タスクの引き渡し)と応援要請
+    summary["handoffs"] = process_handoffs(st, taskboard, names, now)
+    summary["help_requests"] = process_help_requests(st, taskboard, names, now)
 
     # 2. 采配(Claude → ルールベースの順)
     decision = brain.decide(names, st, taskboard)
