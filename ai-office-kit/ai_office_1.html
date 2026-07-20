@@ -548,6 +548,16 @@ async function pollState(){
       w.manual=null;
       w.waitingReason=(!w.idle&&typeof waiting[w.name]==="string")?waiting[w.name]:null;
     }
+    // エージェント間連携(バトンパス/応援)の受信 → 新着はビジュアルエフェクト起動
+    serverCollabs=Array.isArray(st.collaborations)?st.collaborations:[];
+    for(const c of serverCollabs){
+      if(c.status!=="active"&&c.status!=="pending")continue;
+      const key=(c.from_agent||"")+">"+(c.to_agent||"")+"@"+(c.timestamp||"");
+      if(seenCollabs.has(key))continue;
+      seenCollabs.add(key);
+      if(!c.timestamp||Date.now()-Date.parse(c.timestamp)<300e3)startCollabFx(c); // 新着5分以内のみ演出
+    }
+    refreshCollabs();
     for(const o of (st.overrides||[])){
       const w=workers.find(x=>x.name===o.name);
       if(!w)continue;
@@ -569,6 +579,97 @@ async function pollState(){
 }
 pollState();
 setInterval(pollState,30000);
+
+// ---- エージェント間連携(コラボレーション)の見える化 ----------------------
+// office_state.json の collaborations([{from_agent,to_agent,request_type,
+// status,message,task,timestamp,until}])を読み、
+//  ① 連携中の2人の間に点線コネクションライン(handoff=琥珀/help=シアン)
+//  ② 依頼送信時にパケット(光のドット)が飛ぶアニメーション+💬吹き出しの対話
+//  ③ 状態欄を「作業中(〇〇からの依頼)」表示
+// で「誰と誰がコラボ中か」をひと目で分かるようにする。
+let serverCollabs=[],demoCollabs=[],activeCollabs=[],collabByTo={};
+const seenCollabs=new Set();
+const collabFx=[];            // 飛行中パケット
+const PACKET_MS=1400;
+function refreshCollabs(){
+  activeCollabs=serverCollabs.concat(demoCollabs)
+    .filter(c=>c.status==="active"||c.status==="pending");
+  collabByTo={};
+  for(const c of activeCollabs)collabByTo[c.to_agent]=c;
+  if(typeof updateBoard==="function")updateBoard();
+}
+function startCollabFx(c){
+  const f=workers.find(w=>w.name===c.from_agent),
+        t=workers.find(w=>w.name===c.to_agent);
+  if(!f||!t)return;
+  collabFx.push({c,f,t,start:performance.now(),arrived:false});
+  f.bubble="💬 "+c.to_agent+"さんに依頼を送りました！";f.bubbleT=3;
+}
+function qBez(p,a,m,b){const q=1-p;return q*q*a+2*p*q*m+p*p*b;}
+function drawCollabs(now){
+  ctx.save();
+  // ① 連携中の点線コネクションライン(軽いアーチ・流れる破線・パルス)
+  for(const c of activeCollabs){
+    const f=workers.find(w=>w.name===c.from_agent),
+          t=workers.find(w=>w.name===c.to_agent);
+    if(!f||!t)continue;
+    const x1=f.x*S,y1=(f.y-12)*S,x2=t.x*S,y2=(t.y-12)*S;
+    const mx=(x1+x2)/2,my=Math.min(y1,y2)-14*S;
+    const pulse=.35+.2*Math.sin(now/300);
+    ctx.strokeStyle=c.request_type==="help"
+      ?"rgba(34,211,238,"+pulse+")":"rgba(251,191,36,"+pulse+")";
+    ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.lineDashOffset=-(now/40)%10;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  // ② パケット(依頼が飛んでいく光のドット+尾)。着弾で受信側の💬吹き出し
+  for(let i=collabFx.length-1;i>=0;i--){
+    const e=collabFx[i],age=now-e.start;
+    if(age>=PACKET_MS){
+      if(!e.arrived){
+        e.arrived=true;
+        e.t.bubble="💬 "+e.c.from_agent+"さんから依頼受信、開始します！";e.t.bubbleT=3;
+      }
+      collabFx.splice(i,1);continue;
+    }
+    const p=age/PACKET_MS;
+    const x1=e.f.x,y1=e.f.y-12,x2=e.t.x,y2=e.t.y-12;
+    const mx=(x1+x2)/2,my=Math.min(y1,y2)-14;
+    for(let k=3;k>=1;k--){                       // 尾(残光)
+      const pp=Math.max(0,p-k*.06);
+      dpx(qBez(pp,x1,mx,x2)*S,qBez(pp,y1,my,y2)*S,2,2,
+          "rgba(251,191,36,"+(0.5-0.13*k)+")");
+    }
+    const bx=qBez(p,x1,mx,x2),by=qBez(p,y1,my,y2);
+    px(bx-1,by-1,3,3,"#fff7d6"); px(bx,by,1,1,"#fbbf24");
+  }
+  ctx.restore();
+}
+// テスト用シナリオ(?demo=collab): 黄金コンビの連携を12秒周期でモック実行
+// A: セオ(SEO)→フミ(ライター)へ執筆のバトンパス
+// B: ルナ(SNS)→ニジ(デザイナー)へクリエイティブ制作を自動依頼
+if(qp.get("demo")==="collab"){
+  const SCEN=[
+    ["セオ","フミ","handoff","「ドローン比較」の構成案ができたので、本文執筆をお願いします！"],
+    ["ルナ","ニジ","handoff","投稿企画が完了しました。クリエイティブ制作をお願いします！"],
+  ];
+  let di=0;
+  function demoFire(){
+    const [f,t,type,msg]=SCEN[di++%SCEN.length];
+    demoCollabs=demoCollabs.filter(x=>!x.until||Date.parse(x.until)>Date.now());
+    const c={from_agent:f,to_agent:t,request_type:type,status:"active",message:msg,
+             timestamp:new Date().toISOString(),
+             until:new Date(Date.now()+60e3).toISOString()};
+    demoCollabs.push(c);
+    const wt=workers.find(w=>w.name===t);
+    if(wt){wt.liveUntil=performance.now()+60000;wt.lastActWall=Date.now();
+           if(wt.state==="desk")wt.state="live";}
+    refreshCollabs();
+    startCollabFx(c);
+  }
+  setTimeout(demoFire,2500);
+  setInterval(demoFire,12000);
+}
 
 // ---- 社長指示バー(→ office_server.py の /api/command) ---------------------
 // 指示を送ると office_state.json が更新され、対象メンバーが「作業中」になる。
@@ -628,6 +729,9 @@ function hoverText(w){
   if(w.manual&&w.manual.status==="done"&&w.state!=="live")return "完了："+w.manual.task;
   if(w.manual&&w.manual.status==="working")return "作業中(チャット指示)："+w.manual.task;
   if(w.idle)return w.task;
+  const cc=collabByTo[w.name];
+  if(cc&&w.state==="live")
+    return "作業中("+cc.from_agent+"からの依頼)："+((w.manual&&w.manual.task)||cc.task||w.task);
   const wait=w.waitingReason?"待機中・"+w.waitingReason:"待機中";
   if(w.state==="live")return "作業中："+w.task;
   if(w.state==="desk")return wait+"(担当："+w.task+")";
@@ -1226,6 +1330,9 @@ function drawUsage(){
 const rows=document.getElementById("rows");
 function stateLabel(w){
   if(w.manual&&w.manual.status==="done"&&w.state!=="live")return ["完了✓(1h以内)","st-work"];
+  const cc=collabByTo[w.name];   // 連携(依頼)を受けて作業中なら依頼元を明示
+  if(cc&&(w.state==="live"||w.state==="toDesk"))
+    return ["作業中("+cc.from_agent+"からの依頼)","st-work"];
   if(w.idle)return w.state==="toBreak"?["移動中(待機)","st-idle"]:["待機中(休憩室)","st-idle"];
   const wait=w.waitingReason?"待機中("+w.waitingReason+")":null;   // 例: 待機中(社長指示待ち)
   if(w.state==="rest")return isStale(w)?["休息中(稼働なし12h+)","st-rest"]
@@ -1273,6 +1380,7 @@ function frame(now){
   items.push({y:H,fn:()=>{vWallSeg(316,402,H-2);}}); // ブレイン/AI LABの右壁(連続)
   workers.forEach(w=>items.push({y:w.y,fn:()=>drawWorker(w)}));
   items.sort((a,b)=>a.y-b.y).forEach(i=>i.fn());
+  drawCollabs(now);   // 連携ライン・パケットはキャラの上に重ねる
 
   signPlate(53,13,"統括・事務室");
   signPlate(158,13,"会議室");
