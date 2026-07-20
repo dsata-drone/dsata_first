@@ -90,31 +90,108 @@ def busy_names(st, now):
     return names
 
 
-def rule_based_decide(names, st, taskboard, now):
-    """APIキーなしのフォールバック采配。采配盤の実行中セクション(P0〜P3)から
-    未完了タスクを拾い、担当が手空きなら割り当てる。"""
-    busy = busy_names(st, now)
-    assignments, seen = [], set()
-    section_ok = False
+TASK_RE = re.compile(r"- \(([^)]+)\)[:：]\s*(.+)")
+
+
+def parse_taskboard(taskboard):
+    """采配盤を構造化する。行書式: `- (名前)：本文 [依存:名前] [進捗:N%]`
+    → {section, who, task, prog, dep} のリスト。
+    `依存:名前` を付けたタスクは、その名前の担当のP0〜P3タスクが完了(100%)する
+    まで采配されず、待機理由「〇〇のタスク完了待ち」として画面に表示される。"""
+    items, section = [], ""
     for line in taskboard.splitlines():
         if line.startswith("## "):
-            section_ok = line.startswith(("## P0", "## P2"))
+            section = line[3:].split("（")[0].split("(")[0].strip()
             continue
-        if not section_ok or not line.startswith("- "):
-            continue
-        m = re.match(r"- \(([^)]+)\)[:：]\s*(.+)", line)
+        m = TASK_RE.match(line)
         if not m:
             continue
-        who, task = m.group(1).strip(), m.group(2).strip()
-        prog = re.search(r"進捗[:：]?\s*(\d+)%", task)
-        if prog and int(prog.group(1)) >= 100:
-            continue
+        who, body = m.group(1).strip(), m.group(2).strip()
+        prog = re.search(r"進捗[:：]?\s*(\d+)%", body)
+        dep = re.search(r"依存[:：]\s*([^\s]+)", body)
+        task = re.sub(r"\s*依存[:：]\s*[^\s]+", "", body)
         task = re.sub(r"\s*進捗[:：]?\s*\d+%", "", task).strip()
+        items.append({
+            "section": section, "who": who, "task": task,
+            "prog": int(prog.group(1)) if prog else None,
+            "dep": dep.group(1) if dep else None,
+        })
+    return items
+
+
+def _is_active(item):
+    """実行中セクション(P0-P1/P2-P3)のタスクか。"""
+    return item["section"].startswith(("P0", "P2"))
+
+
+def _is_open(item):
+    """未完了(進捗100%未満または進捗表記なし)か。"""
+    return item["prog"] is None or item["prog"] < 100
+
+
+def dep_unmet(items, dep_name):
+    """依存先メンバーに未完了のP0〜P3タスクが残っているか。"""
+    return any(_is_active(i) and _is_open(i) and i["who"] == dep_name
+               for i in items)
+
+
+def rule_based_decide(names, st, taskboard, now):
+    """APIキーなしのフォールバック采配。采配盤の実行中セクション(P0〜P3)から
+    未完了タスクを拾い、担当が手空きかつ依存タスクが完了していれば割り当てる。"""
+    busy = busy_names(st, now)
+    items = parse_taskboard(taskboard)
+    assignments, seen = [], set()
+    for it in items:
+        if not _is_active(it) or not _is_open(it):
+            continue
+        who = it["who"]
         if who not in names or who in busy or who in seen:
             continue
+        if it["dep"] and it["dep"] != who and dep_unmet(items, it["dep"]):
+            continue  # 依存タスクが未完了 → 待機(理由は compute_waiting が書く)
         seen.add(who)
-        assignments.append({"name": who, "task": f"{task}(自動采配)", "hours": 2})
+        assignments.append({"name": who, "task": f"{it['task']}(自動采配)", "hours": 2})
     return {"assignments": assignments, "log_lines": [], "escalations": []}
+
+
+def compute_waiting(st, taskboard, names, now):
+    """手空き(working でない)メンバーの「次の一歩を踏み出す条件」を算出し、
+    office_state.json の waiting マップ({名前: 理由})として書き出す。
+    オフィス画面はこれを「待機中(〇〇待ち)」として状態欄に表示する。
+    判定順: 依存タスク未完了 → 実行中タスクあり(再采配待ち) → P4-P5の時期・条件
+    → 何も持っていなければ社長指示待ち。"""
+    busy = busy_names(st, now)
+    items = parse_taskboard(taskboard)
+    waiting = {}
+    for name in names:
+        if name in busy:
+            continue
+        mine = [i for i in items if i["who"] == name]
+        active = [i for i in mine if _is_active(i) and _is_open(i)]
+        reason = None
+        for it in active:
+            if it["dep"] and it["dep"] != name and dep_unmet(items, it["dep"]):
+                reason = f"{it['dep']}のタスク完了待ち"
+                break
+        if reason is None and active:
+            reason = "ジンの再采配待ち"  # 次サイクルで自動采配される
+        if reason is None:
+            for it in (i for i in mine if i["section"].startswith("P4")):
+                t = it["task"]
+                if "補助金" in t:
+                    reason = "補助金採択待ち"
+                elif "9月" in t:
+                    reason = "9月まで待機"
+                elif "毎朝" in t:
+                    reason = "毎朝7時の定期作業待ち"
+                elif "毎週土曜" in t or "週次" in t:
+                    reason = "週次実行日(土曜)待ち"
+                else:
+                    reason = "時期・条件待ち"
+                break
+        waiting[name] = reason or "社長指示待ち"
+    st["waiting"] = waiting
+    return waiting
 
 
 def daily_knowledge_update(st, taskboard, now):
@@ -230,6 +307,9 @@ def main():
         source = "自動采配"
     summary["assigned"] = apply_decision(st, decision, names, now, source)
     summary["decision_source"] = source
+
+    # 2.5 待機理由の算出(手空きメンバーの「〇〇待ち」をオフィス画面へ)
+    summary["waiting"] = compute_waiting(st, taskboard, names, now)
 
     # 3. 送信キュー
     if dry_run:
