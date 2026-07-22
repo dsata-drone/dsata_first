@@ -37,9 +37,11 @@ BACKLOG_FILE = os.path.join(OFFICE, "AIチーム_ナレッジ", "ロール別バ
 HTML = os.path.join(OFFICE, "ai_office_1.html")
 LOG_MAX = 40
 JST = ZoneInfo("Asia/Tokyo")
-# 稼働保証: 待機(休憩室)は1日累計でこの分数まで。超えたらジンが
-# 先行準備・定常業務タスクを自動采配して「作業中」に戻す(長期待機=ニート状態の禁止)。
-IDLE_LIMIT_MIN = 240
+# 常時稼働: 待機の許容は0分。手空きのメンバーは毎サイクル、その場で
+# 先行準備・定常業務・自主研究タスクが采配され「作業中」になる。
+# 「指示待ち」「条件待ち」による長時間停止は存在しない(休憩室は画面上の
+# 数分リフレッシュ演出のみ)。値を増やせば旧・稼働保証(待機許容)に戻せる。
+IDLE_LIMIT_MIN = 0
 
 
 def team_names():
@@ -384,9 +386,9 @@ def pick_activity_task(st, items, backlog, name):
 
 
 def ensure_min_activity(st, taskboard, names, now):
-    """長期待機の完全禁止(稼働保証)。待機の日次累計が IDLE_LIMIT_MIN(4時間)に達した
-    メンバーへ、先行準備・定常業務タスクを自動生成して4時間の「作業中」にする。
-    これにより全員が毎日、少なくとも半日は知的生産活動を行う状態を保証する。
+    """常時稼働の保証。待機の日次累計が IDLE_LIMIT_MIN(現在0=待機を許容しない)に
+    達したメンバーへ、先行準備・定常業務タスクを自動生成して4時間の「作業中」にする。
+    つまり毎サイクル、手空きの全員に必ず仕事が入る — 停止しているエージェントは存在しない。
     通常采配(P0〜P3)が先に走るので、実タスクがある人はそちらが優先される。"""
     mins = st.get("idle_clock", {}).get("minutes", {})
     busy = busy_names(st, now)
@@ -405,7 +407,7 @@ def ensure_min_activity(st, taskboard, names, now):
             "until": (now + timedelta(hours=4)).isoformat(timespec="seconds"),
         })
         st.setdefault("log", []).append(
-            f"{hm} ジン: {name}へ稼働保証タスク『{task}』(待機が1日の上限4hに到達)")
+            f"{hm} ジン: {name}へ常時稼働タスク『{task}』(手空きゼロ運用)")
         assigned.append(f"{name}: {task}")
     return assigned
 
@@ -455,6 +457,8 @@ def compute_waiting(st, taskboard, names, now):
                 break
         base = reason or "社長指示待ち"
         rem = max(0, IDLE_LIMIT_MIN - mins.get(name, 0))
+        # 常時稼働(IDLE_LIMIT_MIN=0)では ensure_min_activity が同サイクルで全員を
+        # 稼働させるため、通常この waiting は空になる(残るのは瞬間的な表示のみ)
         suffix = f"あと{_fmt_min(rem)}で自動稼働" if rem else "まもなく自動稼働"
         waiting[name] = f"{base}・{suffix}"
     st["waiting"] = waiting
