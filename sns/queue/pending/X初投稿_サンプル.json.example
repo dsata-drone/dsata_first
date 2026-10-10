@@ -1,0 +1,9 @@
+{
+  "note": "X投稿ジョブの雛形。Secrets設定後、.exampleを外すと自動投稿される",
+  "platform": "x",
+  "text": "はじめまして!プログラミング教材「ALUX」公式です🚁\nカードをかざすだけでドローンが飛ぶ、世界初のカードコーディング。CES 2025イノベーションアワード受賞。\n#プログラミング教育 #STEAM教育",
+  "image_paths": [
+    "assets/logo/alux_logo_2000.png"
+  ],
+  "scheduled_at": "2026-07-21T18:00:00+09:00"
+}
