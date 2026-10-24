@@ -1,0 +1,9 @@
+{
+  "note": "投稿ジョブの雛形。image_urlsを公開URLにし、.exampleを外すと自動投稿される",
+  "type": "image",
+  "caption": "はじめまして!プログラミング教材「ALUX」の日本公式アカウントです 🚁\n(開設キットの投稿①キャプションをここに)\n#プログラミング教育 #STEAM教育 #知育玩具",
+  "image_urls": [
+    "https://example.com/alux_post1.png"
+  ],
+  "scheduled_at": "2026-07-21T18:00:00+09:00"
+}

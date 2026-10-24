@@ -1,0 +1,12 @@
+{
+  "note": "外注依頼書の自動送付ジョブの雛形。to を実際の委託先アドレスに書き換え、拡張子から .example を外して同じフォルダに置くと、次の自律運転サイクルで自動送信される。",
+  "channel": "email",
+  "to": "web-partner@example.com",
+  "subject": "【作業依頼】公式サイト2件へのllms.txt設置と構造化データ実装",
+  "body_file": "aio-project/外注依頼書_W1実装.md",
+  "attachments": [
+    "aio-project/w1_deliverables/llms.txt_alux-follow.com",
+    "aio-project/w1_deliverables/llms.txt_follow.ne.jp",
+    "aio-project/w1_deliverables/structured_data_alux-follow.com.html"
+  ]
+}
