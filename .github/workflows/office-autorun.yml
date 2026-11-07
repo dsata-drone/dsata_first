@@ -1,0 +1,86 @@
+name: office-autorun
+
+# AIバーチャルオフィスの自律運転ループ。
+# 毎時実行 + 手動実行(workflow_dispatch) + outbox/采配盤の変更をトリガーにした即時実行。
+on:
+  schedule:
+    - cron: "23 * * * *"   # 毎時23分(混雑する00分を避ける)
+  workflow_dispatch: {}
+  push:
+    branches: ["claude/resume-session-o9fn5f", "main"]
+    paths:
+      - "automation/outbox/pending/**"
+      - "sns/queue/pending/**"
+      - "ai-office-kit/AIチーム_ナレッジ/JOHN_TASKBOARD.md"
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: office-autorun
+  cancel-in-progress: false
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install optional Claude SDK
+        run: pip install --quiet anthropic
+
+      - name: Run orchestrator cycle
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          EMERGENCY_SLACK_WEBHOOK_URL: ${{ secrets.EMERGENCY_SLACK_WEBHOOK_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 automation/orchestrator.py
+
+      - name: Commit state changes
+        run: |
+          git config user.name "office-autorun"
+          git config user.email "office-autorun@users.noreply.github.com"
+          git add ai-office-kit/office_state.json "ai-office-kit/AIチーム_ナレッジ" automation/outbox sns/queue
+          if ! git diff --cached --quiet; then
+            git commit -m "自律運転サイクル: 状態更新 ($(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M') JST)"
+            git push
+          else
+            echo "変更なし"
+          fi
+
+      # ---- エマージェンシー: サイクル自体が失敗した時だけ人間へ通知 ----
+      - name: Emergency notification on failure
+        if: failure()
+        env:
+          SLACK_URL: ${{ secrets.EMERGENCY_SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -n "$SLACK_URL" ]; then
+            curl -sS -X POST -H 'Content-Type: application/json' \
+              -d "{\"text\":\"🚨 [AIオフィス] 自律運転サイクルが失敗しました。確認してください: $RUN_URL\"}" \
+              "$SLACK_URL" || true
+          fi
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/issues" \
+            -d "{\"title\":\"[AIオフィス緊急] 自律運転サイクル失敗\",\"body\":\"実行ログ: $RUN_URL\",\"labels\":[\"office-emergency\"]}" || true
